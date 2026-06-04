@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finding the Domain Controller Without Credentials | Chepe</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --red: #ff7b72;
+    --yellow: #e3b341;
+    --purple: #bc8cff;
+    --cyan: #79c0ff;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 60px 28px 100px;
+  }
+
+  /* Header */
+  .header-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 52px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .header-bar .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-red   { background: #ff5f57; }
+  .dot-yellow{ background: #febc2e; }
+  .dot-green { background: #28c840; }
+  .header-bar .path { margin-left: 12px; color: var(--green); }
+
+  /* Tags */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+  .tag.blue  { border-color: var(--blue);   color: var(--blue);   }
+  .tag.green { border-color: var(--green);  color: var(--green);  }
+  .tag.red   { border-color: var(--red);    color: var(--red);    }
+
+  /* Title */
+  h1 {
+    font-family: 'Sora', sans-serif;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+  h1 .accent { color: var(--blue); }
+
+  .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 48px;
+    display: flex;
+    gap: 20px;
+  }
+
+  /* Section headings */
+  h2 {
+    font-family: 'Sora', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 52px 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 22px;
+    background: var(--blue);
+    border-radius: 2px;
+  }
+
+  h3 {
+    font-family: 'Sora', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--cyan);
+    margin: 36px 0 14px;
+  }
+
+  p { margin-bottom: 18px; color: #cdd9e5; }
+
+  /* Code blocks */
+  .terminal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 24px 0;
+    overflow: hidden;
+  }
+  .terminal-header {
+    background: var(--bg3);
+    padding: 9px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tdot { width: 12px; height: 12px; border-radius: 50%; }
+  .terminal-header .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 8px;
+    letter-spacing: 0.05em;
+  }
+  .terminal-body {
+    padding: 20px 20px 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .c-prompt  { color: var(--green); }
+  .c-cmd     { color: var(--blue); }
+  .c-flag    { color: var(--yellow); }
+  .c-string  { color: var(--red); }
+  .c-comment { color: var(--text-muted); font-style: italic; }
+  .c-output  { color: #cdd9e5; }
+  .c-good    { color: var(--green); }
+  .c-key     { color: var(--purple); }
+
+  /* Inline code */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--cyan);
+  }
+
+  /* Info / callout boxes */
+  .callout {
+    border-left: 3px solid var(--blue);
+    background: #161b22;
+    padding: 16px 20px;
+    border-radius: 0 6px 6px 0;
+    margin: 24px 0;
+    font-size: 15px;
+    color: var(--text-muted);
+  }
+  .callout.warn { border-left-color: var(--yellow); }
+  .callout.note { border-left-color: var(--green); }
+
+  /* Port table */
+  .port-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin: 24px 0;
+  }
+  .port-table th {
+    background: var(--bg3);
+    color: var(--text-muted);
+    font-weight: 400;
+    text-align: left;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .port-table td {
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .port-table tr:nth-child(even) td { background: #0f1318; }
+  .port-number { color: var(--blue); }
+  .port-service { color: var(--green); }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 72px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <div class="header-bar">
+    <span class="dot dot-red"></span>
+    <span class="dot dot-yellow"></span>
+    <span class="dot dot-green"></span>
+    <span class="path">~/blog/active-directory/dc-discovery.md</span>
+  </div>
+
+  <div class="tags">
+    <span class="tag blue">Active Directory</span>
+    <span class="tag green">Enumeration</span>
+    <span class="tag red">Red Team</span>
+    <span class="tag">OSCP</span>
+    <span class="tag">Unauthenticated</span>
+  </div>
+
+  <h1>Finding the <span class="accent">Domain Controller</span><br>Without Credentials</h1>
+
+  <div class="meta">
+    <span>Chepe</span>
+    <span>Active Directory Series</span>
+    <span>~8 min read</span>
+  </div>
+
+  <p>You just landed on a box. Internal network. No domain creds. Maybe you got a local admin via some juicy vuln, maybe you're just sitting on the network with a rogue device. Either way, one of your first questions is the same every time: <em>where is the Domain Controller?</em></p>
+
+  <p>You can't do much in an AD environment without knowing that. Kerberoasting, AS-REP roasting, BloodHound collection, pass-the-hash pivoting — all of it starts from knowing what the DC is and what domain you're in. So this post is about exactly that. Finding the DC before you even have a single valid credential.</p>
+
+  <p>I'm covering three methods. Some you'll use from your attacker machine on Linux, one works from a Windows foothold. All of them zero creds required.</p>
+
+  <hr class="divider">
+
+  <h2>Method 1 — Nmap Port Fingerprinting</h2>
+
+  <p>A Domain Controller has a very recognizable port profile. It's not like a regular Windows workstation or even a member server. The combination of services it has to run — DNS, Kerberos, LDAP, RPC, SMB — creates a signature that's hard to miss once you know what to look for.</p>
+
+  <p>Here's what you're typically going to see open on a DC:</p>
+
+  <table class="port-table">
+    <thead>
+      <tr>
+        <th>Port</th>
+        <th>Protocol</th>
+        <th>Service</th>
+        <th>Why it matters</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="port-number">53</td><td>TCP/UDP</td><td class="port-service">DNS</td><td>DCs are typically DNS servers for the domain</td></tr>
+      <tr><td class="port-number">88</td><td>TCP/UDP</td><td class="port-service">Kerberos</td><td>DC-only — strongest single indicator</td></tr>
+      <tr><td class="port-number">135</td><td>TCP</td><td class="port-service">RPC Endpoint Mapper</td><td>Windows standard, but present on DCs</td></tr>
+      <tr><td class="port-number">389</td><td>TCP/UDP</td><td class="port-service">LDAP</td><td>AD LDAP — DC exclusive</td></tr>
+      <tr><td class="port-number">445</td><td>TCP</td><td class="port-service">SMB</td><td>Present everywhere but needed on DC</td></tr>
+      <tr><td class="port-number">464</td><td>TCP/UDP</td><td class="port-service">Kerberos kpasswd</td><td>Password change service — DC only</td></tr>
+      <tr><td class="port-number">636</td><td>TCP</td><td class="port-service">LDAPS</td><td>LDAP over TLS</td></tr>
+      <tr><td class="port-number">3268</td><td>TCP</td><td class="port-service">Global Catalog LDAP</td><td>DC only, forest-wide queries</td></tr>
+      <tr><td class="port-number">3269</td><td>TCP</td><td class="port-service">Global Catalog LDAPS</td><td>DC only, encrypted</td></tr>
+    </tbody>
+  </table>
+
+  <p>Port 88 is your biggest tell. Kerberos only runs on Domain Controllers. If you see 88 open, you found a DC. Period. But to be thorough, do a targeted scan for the full combo:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — nmap DC fingerprint</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">sudo nmap</span> <span class="c-flag">-Pn -T4 -p 53,88,135,389,445,464,636,3268,3269</span> <span class="c-string">192.168.115.0/24</span>
+
+<span class="c-output">Starting Nmap 7.94 ( https://nmap.org )
+Nmap scan report for 192.168.115.120
+Host is up (0.0021s latency).
+
+PORT     STATE SERVICE
+53/tcp   open  domain
+88/tcp   open  kerberos-sec
+135/tcp  open  msrpc
+389/tcp  open  ldap
+445/tcp  open  microsoft-ds
+464/tcp  open  kpasswd5
+636/tcp  open  ldapssl
+3268/tcp open  globalcatLDAP
+3269/tcp open  globalcatLDAPssl</span></div>
+  </div>
+
+  <p>That output basically screams DC. But if you want confirmation along with actual domain info — hostname, domain name, forest name — take it one step further with the <code>ldap-rootdse</code> NSE script. This one queries the LDAP Root DSE, which is publicly accessible with no authentication required by default.</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — ldap-rootdse</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">sudo nmap</span> <span class="c-flag">-Pn -T4 -p 389</span> <span class="c-flag">--script ldap-rootdse</span> <span class="c-string">192.168.115.120</span>
+
+<span class="c-output">PORT    STATE SERVICE
+389/tcp open  ldap
+| ldap-rootdse:
+|   </span><span class="c-key">dnsHostName</span><span class="c-output">: dc01.contoso.com
+|   </span><span class="c-key">defaultNamingContext</span><span class="c-output">: DC=contoso,DC=com
+|   </span><span class="c-key">domainControllerFunctionality</span><span class="c-output">: 7 (Windows Server 2016+)
+|   </span><span class="c-key">serverName</span><span class="c-output">: CN=DC03,CN=Servers,CN=Default-First-Site...</span></div>
+  </div>
+
+  <p>Right there. Hostname, domain name, even the functional level. Zero authentication. And if you want just the hostname fast without parsing the whole output:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — quick hostname grab</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">sudo nmap</span> <span class="c-flag">-Pn -T4 -p 389,636</span> <span class="c-flag">--script ldap-rootdse</span> <span class="c-string">192.168.115.120</span> <span class="c-cmd">|</span> <span class="c-cmd">grep</span> <span class="c-string">dnsHostName</span>
+
+<span class="c-good">|   dnsHostName: dc01.contoso.com</span></div>
+  </div>
+
+  <div class="callout note">
+    The Root DSE is queryable without credentials because it's designed that way. Microsoft's spec says it has to be accessible for clients to discover the AD structure. Useful for them. Useful for us.
+  </div>
+
+  <hr class="divider">
+
+  <h2>Method 2 — DNS SRV Records via nslookup</h2>
+
+  <p>Active Directory relies heavily on DNS SRV records to help clients find services. When a machine needs to locate a Domain Controller, it queries DNS for specific SRV records. We can do exactly the same thing manually with <code>nslookup</code>. No creds, no domain membership required.</p>
+
+  <p>The key record is <code>_ldap._tcp.dc._msdcs.&lt;domain&gt;</code>. That's the record Windows clients use to find DCs. If you already have a domain name — maybe you grabbed it from NBNS traffic, or someone told you the environment name, or you got it from the nmap scan above — you can query it directly:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">Windows — nslookup SRV query</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">PS C:\Users\chepe&gt;</span> <span class="c-cmd">nslookup</span> <span class="c-flag">-type=SRV</span> <span class="c-string">_ldap._tcp.dc._msdcs.contoso.com</span>
+
+<span class="c-output">DNS request timed out.
+    timeout was 2 seconds.
+Server:  UnKnown
+Address:  192.168.115.120
+
+_ldap._tcp.dc._msdcs.contoso.com    SRV service location:
+        priority   = 0
+        weight     = 100
+        port       = 389
+        svr hostname = dc01.contoso.com
+dc01.contoso.com    internet address = 192.168.115.120</span></div>
+  </div>
+
+  <p>That's the output from the screenshot. Notice the DNS server itself is <code>192.168.115.120</code> — which is the same IP the SRV record resolves to. The DC is also the DNS server. Very common in AD environments, especially smaller ones. One query confirmed both the hostname and the IP.</p>
+
+  <p>The "DNS request timed out" at the top looks scary but it's not. That just means the reverse lookup for the DNS server's name didn't resolve. The actual query worked fine. You still got your answer.</p>
+
+  <p>You can also run this same query from Linux with <code>dig</code>:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — dig SRV query</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">dig</span> <span class="c-flag">SRV</span> <span class="c-string">_ldap._tcp.dc._msdcs.contoso.com</span> <span class="c-flag">@192.168.115.120</span>
+
+<span class="c-output">;; ANSWER SECTION:
+_ldap._tcp.dc._msdcs.contoso.com. 600 IN SRV 0 100 389 dc01.contoso.com.
+
+;; ADDITIONAL SECTION:
+dc01.contoso.com. 1200 IN A 192.168.115.120</span></div>
+  </div>
+
+  <p>Same result. Hostname and IP, no creds.</p>
+
+  <div class="callout warn">
+    This works when you already know the domain name. If you don't, pair it with Method 1 first to grab the domain from the LDAP Root DSE, then come back here to confirm with SRV records.
+  </div>
+
+  <hr class="divider">
+
+  <h2>Method 3 — nltest from a Windows Foothold</h2>
+
+  <p>This one is for when you're already on a Windows machine. Not domain joined, no domain creds — just a local session on some Windows box on the network. <code>nltest</code> is a built-in Windows tool, no installation needed.</p>
+
+  <p>The <code>/dclist</code> flag tries to enumerate DCs for a given domain by binding to the Netlogon service on a DC. Here's the thing though — look at what happens when you're not on a domain-joined machine:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">Windows — nltest /dclist</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">PS C:\Users\chepe&gt;</span> <span class="c-cmd">nltest</span> <span class="c-flag">/dclist</span><span class="c-string">:contoso.com</span>
+
+<span class="c-output">Get list of DCs in domain 'contoso.com' from '\\dc01.contoso.com'.
+You don't have access to DsBind to contoso.com (\\dc01.contoso.com) (Trying NetSe
+I_NetGetDCList failed: Status = 6118 0x17e6 ERROR_NO_BROWSER_SERVERS_FOUND</span></div>
+  </div>
+
+  <p>The error is misleading. <code>ERROR_NO_BROWSER_SERVERS_FOUND</code> sounds like it found nothing but look at the first line: <em>"Get list of DCs in domain 'contoso.com' from '\\dc01.contoso.com'"</em>. It already told you the DC hostname before failing. The failure happens because we don't have credentials to actually bind and pull the full list. But the reconnaissance value is already there in line one.</p>
+
+  <p>If you want a cleaner approach from a Windows foothold, use <code>/dsgetdc</code> instead:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">Windows — nltest /dsgetdc</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">PS C:\Users\chepe&gt;</span> <span class="c-cmd">nltest</span> <span class="c-flag">/dsgetdc</span><span class="c-string">:contoso.com</span>
+
+<span class="c-output">           DC: \\dc01.contoso.com
+      Address: \\192.168.115.120
+     Dom Guid: &lt;guid&gt;
+     Dom Name: contoso.com
+  Forest Name: contoso.com
+ Dc Site Name: Default-First-Site-Name
+Our Site Name: Default-First-Site-Name
+        Flags: PDC GC DS LDAP KDC TIMESERV WRITABLE DNS_FOREST CLOSE_SITE</span></div>
+  </div>
+
+  <p>That one works without domain membership. It queries DNS for the SRV records under the hood — same mechanism as Method 2 but wrapped in a Windows tool. The <code>Flags</code> field is gold. <code>PDC</code> means this is the Primary DC. <code>GC</code> means it's a Global Catalog server. <code>KDC</code> confirms Kerberos. You're looking at the full profile of the DC from a single unauthenticated call.</p>
+
+  <hr class="divider">
+
+  <h2>Method 4 — NetExec SMB Sweep</h2>
+
+  <p>NetExec (nxc) is the community-maintained successor to CrackMapExec. One of the first things you run on an internal engagement is an SMB sweep across the subnet. No credentials needed for this — just throw the CIDR range at it:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — nxc subnet sweep</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">nxc smb</span> <span class="c-string">192.168.115.0/24</span>
+
+<span class="c-output">SMB   192.168.115.105  445  WS01        [*] Windows 11 Build 22631 (name:WS01) (domain:contoso.com) (signing:False) (SMBv1:False)
+SMB   192.168.115.120  445  DC01        [*] Windows Server 2022 Build 20348 (name:DC01) (domain:contoso.com) (signing:True) (SMBv1:False)</span></div>
+  </div>
+
+  <p>That single line for DC01 gives you the hostname, domain name, OS version, and SMB signing status — all from an unauthenticated probe. The <code>signing:True</code> on the DC is expected and actually another indicator. DCs enforce SMB signing by default. Workstations typically don't.</p>
+
+  <p>You'll notice I'm not passing <code>-u</code> or <code>-p</code> here at all. nxc doesn't require credentials to enumerate hosts at this level. It's just sending an SMB negotiation and reading the response banner. Completely unauthenticated.</p>
+
+  <p>If you want to go one step further and attempt a null session to see what comes back:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — nxc null session</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">nxc smb</span> <span class="c-string">192.168.115.120</span> <span class="c-flag">-u ''</span> <span class="c-flag">-p ''</span>
+
+<span class="c-output">SMB   192.168.115.120  445  DC01        [*] Windows Server 2022 Build 20348 (name:DC01) (domain:contoso.com) (signing:True) (SMBv1:False)
+SMB   192.168.115.120  445  DC01        [-] contoso.com\: STATUS_ACCESS_DENIED</span></div>
+  </div>
+
+  <p>The <code>STATUS_ACCESS_DENIED</code> on null sessions is the expected response on hardened modern DCs and that's fine. The host enumeration line above it already gave you what you need. Null sessions being blocked doesn't stop you from reading the banner.</p>
+
+  <div class="callout warn">
+    The subnet sweep with no creds is the fastest way to map the whole environment at once. You'll see every Windows host that responds on 445, their hostnames, domain membership, and OS version in one shot. Run this early.
+  </div>
+
+  <hr class="divider">
+
+  <h2>Method 5 — ldapsearch Anonymous Bind</h2>
+
+  <p>If nmap isn't available or you want a more targeted approach, <code>ldapsearch</code> can query the LDAP Root DSE directly with an anonymous bind. By default, Active Directory allows unauthenticated clients to read the Root DSE — Microsoft's own spec requires this so that clients can discover the AD structure before authenticating.</p>
+
+  <p>The command for a Root DSE query looks like this:</p>
+
+  <div class="terminal">
+    <div class="terminal-header">
+      <span class="tdot" style="background:#ff5f57"></span>
+      <span class="tdot" style="background:#febc2e"></span>
+      <span class="tdot" style="background:#28c840"></span>
+      <span class="label">kali — ldapsearch root DSE</span>
+    </div>
+    <div class="terminal-body"><span class="c-prompt">$</span> <span class="c-cmd">ldapsearch</span> <span class="c-flag">-x</span> <span class="c-flag">-H ldap://192.168.115.120</span> <span class="c-flag">-s base</span> <span class="c-flag">-b ""</span> <span class="c-string">"(objectClass=*)"</span>
+
+<span class="c-output">dn:
+objectClass: top
+currentTime: 20250604120000.0Z
+subschemaSubentry: CN=Aggregate,CN=Schema,CN=Configuration,DC=contoso,DC=com
+dsServiceName: CN=NTDS Settings,CN=DC01,CN=Servers,CN=Default-First-Site,...
+</span><span class="c-key">namingContexts: DC=contoso,DC=com</span>
+<span class="c-output">namingContexts: CN=Configuration,DC=contoso,DC=com
+namingContexts: DC=DomainDnsZones,DC=contoso,DC=com
+namingContexts: DC=ForestDnsZones,DC=contoso,DC=com
+</span><span class="c-key">defaultNamingContext: DC=contoso,DC=com
+dnsHostName: dc01.contoso.com
+domainControllerFunctionality: 7</span></div>
+  </div>
+
+  <p>Flag breakdown: <code>-x</code> tells ldapsearch to use simple authentication instead of SASL. <code>-H</code> is the URI of the target. <code>-s base</code> restricts the search scope to the base entry only, so you're only pulling the Root DSE and not trying to walk the whole directory. <code>-b ""</code> sets an empty base DN which is how you target the Root DSE specifically.</p>
+
+  <p>The output gives you the domain naming context, the DC hostname via <code>dnsHostName</code>, and the <code>domainControllerFunctionality</code> value which maps to the Windows Server version. Value 7 means Windows Server 2016 or newer.</p>
+
+  <p>This is essentially the same query the nmap <code>ldap-rootdse</code> script runs under the hood — just without nmap in the picture. Good to know when you're working in a constrained environment or pivoting through a tunnel where you'd rather keep it to a single clean LDAP connection instead of a full port scan.</p>
+
+  <div class="callout note">
+    If ldapsearch returns <code>ldap_bind: Inappropriate authentication (48)</code> it means anonymous binds are disabled on that server. That's less common on Windows AD but it does happen. Fall back to Method 1 or 4 in that case since those don't rely on an LDAP bind at all.
+  </div>
+
+  <hr class="divider">
+
+  <h2>Putting It Together</h2>
+
+  <p>In practice you're going to chain these. Land on the network, run the nxc sweep first to map every Windows host in one shot and immediately spot the DC by hostname convention and signing status. Then confirm with either the nmap ldap-rootdse script or ldapsearch to pull the full domain info. SRV records and nltest are your Windows-side options when you already have a foothold on a Windows box.</p>
+
+  <p>Five minutes of recon and you have the DC hostname, IP, domain name, forest name, and OS version — all without a single credential.</p>
+
+  <p>From there you're in a much better position. Now you can go after null session SMB, anonymous LDAP binds deeper into the directory, AS-REP roasting against accounts that don't require preauth, or just start feeding the DC IP into the rest of your toolset. But that's a different post.</p>
+
+  <div class="callout">
+    This workflow is relevant for OSCP, OSEP, and any internal pentest or red team engagement. The recon phase before you have creds is where a lot of people rush. Don't rush it. Understanding the environment first makes everything after it faster.
+  </div>
+
+  <div class="footer">
+    <span>Chepe — Active Directory Series</span>
+    <span>github.com/Y3llowDuck</span>
+  </div>
+
+</div>
+</body>
+</html>

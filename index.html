@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Y3llowDuck — Red Team Notes</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #21262d;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --green:     #3fb950;
+      --yellow:    #d29922;
+      --red:       #f85149;
+      --purple:    #bc8cff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: var(--green); }
+
+    nav { display: flex; gap: 24px; align-items: center; }
+
+    nav a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .2s;
+    }
+
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    .hero {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 80px 32px 56px;
+    }
+
+    .hero-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--green);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+      color: #e6edf3;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 540px;
+      line-height: 1.8;
+      margin-bottom: 36px;
+    }
+
+    .hero-terminal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      max-width: 580px;
+    }
+
+    .term-chrome {
+      padding: 10px 14px;
+      background: #1c2128;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+
+    .term-body {
+      padding: 18px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre;
+      overflow-x: auto;
+      min-height: 160px;
+    }
+
+    .c-prompt { color: var(--green); }
+    .c-cmd    { color: var(--accent); }
+    .c-flag   { color: var(--purple); }
+    .c-string { color: var(--yellow); }
+    .c-output { color: var(--muted); }
+    .c-good   { color: var(--green); }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--green);
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+      margin-left: 1px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .section-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 32px 72px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .section-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.5px;
+      transition: opacity .2s;
+    }
+
+    .section-link:hover { opacity: 0.7; }
+
+    .post-grid { display: grid; gap: 16px; }
+
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      text-decoration: none;
+      display: block;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .post-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .post-card:hover { border-color: #30363d; background: #1c2128; }
+    .post-card:hover::before { opacity: 1; }
+
+    .post-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .post-tag {
+      background: rgba(88,166,255,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(88,166,255,0.2);
+      border-radius: 4px;
+      padding: 1px 8px;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .post-tag.red    { background: rgba(248,81,73,0.1);   color: var(--red);    border-color: rgba(248,81,73,0.2); }
+    .post-tag.green  { background: rgba(63,185,80,0.1);   color: var(--green);  border-color: rgba(63,185,80,0.2); }
+    .post-tag.purple { background: rgba(188,140,255,0.1); color: var(--purple); border-color: rgba(188,140,255,0.2); }
+
+    .post-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .post-card p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+    .post-arrow {
+      position: absolute;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--border);
+      font-size: 18px;
+      transition: color .2s, right .2s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .post-card:hover .post-arrow { color: var(--accent); right: 20px; }
+
+    .about-strip {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 40px 32px;
+      margin-bottom: 72px;
+    }
+
+    .about-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .about-inner h2 { font-size: 18px; font-weight: 600; color: #e6edf3; margin-bottom: 10px; }
+    .about-inner p  { font-size: 14px; color: var(--muted); max-width: 520px; line-height: 1.75; }
+
+    .about-links { display: flex; flex-direction: column; gap: 10px; min-width: 140px; }
+
+    .about-link {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color .2s;
+    }
+
+    .about-link:hover { color: var(--accent); }
+
+    .tools-strip { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+
+    .tool-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 10px;
+      white-space: nowrap;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 32px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      header { padding: 0 18px; }
+      .hero  { padding: 48px 18px 40px; }
+      .section-wrap { padding: 0 18px 48px; }
+      .about-inner  { grid-template-columns: 1fr; }
+      .about-links  { flex-direction: row; flex-wrap: wrap; }
+      .about-strip  { padding: 32px 18px; }
+      nav { gap: 14px; }
+      .post-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a class="logo" href="index.html">Y3llow<span>Duck</span></a>
+    <nav>
+      <a href="index.html" class="active">About</a>
+      <a href="https://y3llowduck.github.io/posts.html">Posts</a>
+      <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <p class="hero-eyebrow">// red team notes</p>
+    <h1>Offensive security,<br>written like a <em>practitioner</em>.</h1>
+    <p class="hero-sub">
+      No fluff. No compliance angle. Just the commands, the reasoning, and the occasional thing that actually surprised me. Focused on OSCP and OSEP material, Active Directory, and post-exploitation.
+    </p>
+
+    <div class="hero-terminal">
+      <div class="term-chrome">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <div class="term-body" id="termOutput"></div>
+    </div>
+  </section>
+
+  <section class="section-wrap" id="posts">
+    <div class="section-header">
+      <span class="section-title">// latest posts</span>
+      <a class="section-link" href="https://y3llowduck.github.io/posts.html">all posts →</a>
+    </div>
+
+    <div class="post-grid">
+
+      <a class="post-card" href="https://y3llowduck.github.io/mssql-stacked-queries.html">
+        <div class="post-meta">
+          <span class="post-tag red">MSSQL</span>
+          <span class="post-tag">Injection</span>
+          <span>Jun 2026</span>
+        </div>
+        <h3>Blind but Not Stuck: MSSQL Stacked Queries to Shell</h3>
+        <p>Time-based blind confirmation, stacked query abuse, and a polymorphic IEX cradle to get a shell. The full chain, explained.</p>
+        <span class="post-arrow">→</span>
+      </a>
+
+      <a class="post-card" href="https://y3llowduck.github.io/dc_discovery.html">
+        <div class="post-meta">
+          <span class="post-tag green">Active Directory</span>
+          <span class="post-tag purple">Reconnaissance</span>
+          <span>Jun 2026</span>
+        </div>
+        <h3>DC Discovery Without Credentials</h3>
+        <p>Finding domain controllers from a blind foothold, no credentials, no BloodHound. Just the techniques that actually work.</p>
+        <span class="post-arrow">→</span>
+      </a>
+
+    </div>
+  </section>
+
+  <div class="about-strip" id="about">
+    <div class="about-inner">
+      <div>
+        <h2>About this site</h2>
+        <p>
+          I am Y3llowDuck. I am a former DBA that moved to the "dark" side and now work as a security engineer.<br><br>
+          This site is where I write up the things I learn in my home labs or while studying, because writing down things is the best way I know to actually understand something. If you find it useful, even better. 🫶
+        </p>
+        <div class="tools-strip">
+          <span class="tool-badge">Kali Linux</span>
+          <span class="tool-badge">impacket</span>
+          <span class="tool-badge">Evil-WinRM</span>
+          <span class="tool-badge">BloodHound</span>
+          <span class="tool-badge">NetExec</span>
+          <span class="tool-badge">Cobalt Strike</span>
+          <span class="tool-badge">ligolo-ng</span>
+          <span class="tool-badge">RevShellGenerator</span>
+        </div>
+      </div>
+      <div class="about-links">
+        <a class="about-link" href="https://github.com/Y3llowDuck" target="_blank" rel="noopener">↗ GitHub</a>
+        <a class="about-link" href="https://linkedin.com/in/chepe" target="_blank" rel="noopener">↗ LinkedIn</a>
+        <a class="about-link" href="https://github.com/Y3llowDuck/OSEP/tree/main/RevShellGenerator" target="_blank" rel="noopener">↗ RevShellGen</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Y3llowDuck · <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener">github.com/Y3llowDuck</a> · built with love by Y3llowDuck</span>
+  </footer>
+
+  <script>
+    // ── terminal typewriter ──
+    const out = document.getElementById('termOutput');
+
+    // each segment: { text, class, delay (ms before this segment starts typing), speed (ms/char) }
+    // null class = plain text, already-colored spans get inserted as HTML chunks
+    const sequence = [
+      // line 1: prompt (instant)
+      { html: '<span class="c-prompt">┌──(kali㉿kali)-[~]\n└─$ </span>', instant: true },
+      // command typed out
+      { text: 'whoami', cls: 'c-cmd', speed: 80 },
+      // output appears after short pause
+      { html: '\n<span class="c-output">Y3llowDuck — security engineer, OSEP candidate, occasional blogger</span>\n\n', instant: true, pause: 320 },
+      // line 2 prompt
+      { html: '<span class="c-prompt">└─$ </span>', instant: true, pause: 200 },
+      // command typed
+      { text: 'cat ', cls: 'c-cmd', speed: 80 },
+      { text: './about.txt', cls: 'c-string', speed: 70 },
+      // output
+      { html: '\n<span class="c-output">Writing about the stuff I wish someone had explained clearly.\nIf it helped me pass a box, it goes on the blog.</span>\n\n', instant: true, pause: 380 },
+      // line 3 prompt
+      { html: '<span class="c-prompt">└─$ </span>', instant: true, pause: 200 },
+      // command typed
+      { text: 'ls ', cls: 'c-cmd', speed: 80 },
+      { text: '-la ', cls: 'c-flag', speed: 80 },
+      { text: './posts/', cls: 'c-string', speed: 70 },
+      // output
+      { html: '\n<span class="c-good">↓  see below</span>', instant: true, pause: 280 },
+    ];
+
+    let cursor = document.createElement('span');
+    cursor.className = 'cursor';
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function typeSegment(seg) {
+      if (seg.pause) await sleep(seg.pause);
+
+      if (seg.instant) {
+        // remove cursor, inject html, re-append cursor
+        if (out.contains(cursor)) out.removeChild(cursor);
+        out.insertAdjacentHTML('beforeend', seg.html);
+        out.appendChild(cursor);
+        return;
+      }
+
+      // typed character by character
+      const span = document.createElement('span');
+      if (seg.cls) span.className = seg.cls;
+      if (out.contains(cursor)) out.removeChild(cursor);
+      out.appendChild(span);
+      out.appendChild(cursor);
+
+      for (const ch of seg.text) {
+        span.textContent += ch;
+        await sleep(seg.speed + (Math.random() * 30 - 15));
+      }
+    }
+
+    async function runSequence() {
+      out.appendChild(cursor);
+      await sleep(600); // initial pause before starting
+      for (const seg of sequence) {
+        await typeSegment(seg);
+      }
+      // blink cursor stays at end — done
+    }
+
+    runSequence();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Posts — Y3llowDuck</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #21262d;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --green:     #3fb950;
+      --yellow:    #d29922;
+      --red:       #f85149;
+      --purple:    #bc8cff;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: var(--green); }
+
+    nav { display: flex; gap: 24px; align-items: center; }
+
+    nav a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .2s;
+    }
+
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--accent); }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 56px 32px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .page-header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #e6edf3;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .page-header p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── ARCHIVE LIST ── */
+    .archive-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 32px 80px;
+    }
+
+    /* year group */
+    .year-group { margin-top: 40px; }
+
+    .year-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 16px 0 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    /* post row */
+    .post-row {
+      display: grid;
+      grid-template-columns: 90px 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      transition: background .15s;
+      border-radius: 4px;
+      padding-left: 8px;
+      padding-right: 8px;
+      margin-left: -8px;
+      margin-right: -8px;
+    }
+
+    .post-row:hover { background: var(--surface); }
+
+    .post-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .post-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      line-height: 1.4;
+      transition: color .2s;
+    }
+
+    .post-row:hover .post-title { color: var(--accent); }
+
+    .post-tags {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      border-radius: 4px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .tag-blue   { background: rgba(88,166,255,0.1);   color: var(--accent); border: 1px solid rgba(88,166,255,0.2); }
+    .tag-red    { background: rgba(248,81,73,0.1);    color: var(--red);    border: 1px solid rgba(248,81,73,0.2); }
+    .tag-green  { background: rgba(63,185,80,0.1);    color: var(--green);  border: 1px solid rgba(63,185,80,0.2); }
+    .tag-purple { background: rgba(188,140,255,0.1);  color: var(--purple); border: 1px solid rgba(188,140,255,0.2); }
+    .tag-yellow { background: rgba(210,153,34,0.1);   color: var(--yellow); border: 1px solid rgba(210,153,34,0.2); }
+
+    /* ── COUNT STRIP ── */
+    .count-strip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 20px 32px 0;
+    }
+
+    .count-strip span { color: var(--green); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 32px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      header { padding: 0 18px; }
+      .page-header { padding: 40px 18px 28px; }
+      .archive-wrap { padding: 0 18px 60px; }
+      .count-strip { padding: 16px 18px 0; }
+      .post-row { grid-template-columns: 72px 1fr; }
+      .post-tags { display: none; }
+      nav { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a class="logo" href="index.html">Y3llow<span>Duck</span></a>
+    <nav>
+      <a href="https://y3llowduck.github.io/index.html">About</a>
+      <a href="posts.html" class="active">Posts</a>
+      <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="page-header">
+    <p class="page-eyebrow">// archive</p>
+    <h1>All Posts</h1>
+    <p>Everything published on this site, newest first.</p>
+  </div>
+
+  <div class="count-strip">
+    <span id="postCount">0</span> posts total
+  </div>
+
+  <div class="archive-wrap">
+
+    <div class="year-group">
+      <div class="year-label">2026</div>
+
+      <a class="post-row" href="https://y3llowduck.github.io/mssql-stacked-queries.html">
+        <span class="post-date">Jun 2026</span>
+        <span class="post-title">Blind but Not Stuck: MSSQL Stacked Queries to Shell</span>
+        <div class="post-tags">
+          <span class="tag tag-red">MSSQL</span>
+          <span class="tag tag-blue">Injection</span>
+        </div>
+      </a>
+
+      <a class="post-row" href="https://y3llowduck.github.io/dc_discovery.html">
+        <span class="post-date">Jun 2026</span>
+        <span class="post-title">DC Discovery Without Credentials</span>
+        <div class="post-tags">
+          <span class="tag tag-green">Active Directory</span>
+          <span class="tag tag-purple">Reconnaissance</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- add new year-group blocks here as needed -->
+
+  </div>
+
+  <footer>
+    <span>Y3llowDuck · <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener">github.com/Y3llowDuck</a> · built with love by Y3llowDuck</span>
+  </footer>
+
+  <script>
+    // auto-count post rows
+    const rows = document.querySelectorAll('.post-row');
+    document.getElementById('postCount').textContent = rows.length;
+  </script>
+
+</body>
+</html>

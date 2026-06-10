@@ -70,11 +70,15 @@
     nav a:hover { color: var(--text); }
     nav a.active { color: var(--accent); }
 
-    .hero {
-      max-width: 860px;
+    /* ── SHARED COLUMN — all sections align to this ── */
+    .page-col {
+      max-width: 780px;
       margin: 0 auto;
-      padding: 80px 32px 56px;
+      padding: 0 32px;
     }
+
+    /* ── HERO ── */
+    .hero { padding-top: 80px; padding-bottom: 56px; }
 
     .hero-eyebrow {
       font-family: 'JetBrains Mono', monospace;
@@ -94,10 +98,7 @@
       color: #e6edf3;
     }
 
-    .hero h1 em {
-      font-style: normal;
-      color: var(--accent);
-    }
+    .hero h1 em { font-style: normal; color: var(--accent); }
 
     .hero-sub {
       font-size: 15px;
@@ -107,12 +108,12 @@
       margin-bottom: 36px;
     }
 
+    /* terminal now fills the full column width — no max-width cap */
     .hero-terminal {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
       overflow: hidden;
-      max-width: 580px;
     }
 
     .term-chrome {
@@ -161,11 +162,8 @@
       50%       { opacity: 0; }
     }
 
-    .section-wrap {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 0 32px 72px;
-    }
+    /* ── POSTS ── */
+    .posts-section { padding-bottom: 72px; }
 
     .section-header {
       display: flex;
@@ -271,17 +269,18 @@
 
     .post-card:hover .post-arrow { color: var(--accent); right: 20px; }
 
+    /* ── ABOUT STRIP ──
+       background bleeds full width, but inner content aligns to the same
+       780px column as everything else via .page-col on .about-inner        */
     .about-strip {
       background: var(--surface);
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
-      padding: 40px 32px;
+      padding: 40px 0;
       margin-bottom: 72px;
     }
 
     .about-inner {
-      max-width: 860px;
-      margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 32px;
@@ -306,18 +305,6 @@
 
     .about-link:hover { color: var(--accent); }
 
-    .tools-strip { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-
-    .tool-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      padding: 3px 10px;
-      white-space: nowrap;
-    }
-
     footer {
       border-top: 1px solid var(--border);
       padding: 24px 32px;
@@ -332,11 +319,9 @@
 
     @media (max-width: 640px) {
       header { padding: 0 18px; }
-      .hero  { padding: 48px 18px 40px; }
-      .section-wrap { padding: 0 18px 48px; }
+      .page-col { padding: 0 18px; }
       .about-inner  { grid-template-columns: 1fr; }
       .about-links  { flex-direction: row; flex-wrap: wrap; }
-      .about-strip  { padding: 32px 18px; }
       nav { gap: 14px; }
       .post-arrow { display: none; }
     }
@@ -353,7 +338,7 @@
     </nav>
   </header>
 
-  <section class="hero">
+  <section class="page-col hero">
     <p class="hero-eyebrow">// red team notes</p>
     <h1>Offensive security,<br>written like a <em>practitioner</em>.</h1>
     <p class="hero-sub">
@@ -370,7 +355,7 @@
     </div>
   </section>
 
-  <section class="section-wrap" id="posts">
+  <section class="page-col posts-section" id="posts">
     <div class="section-header">
       <span class="section-title">// latest posts</span>
       <a class="section-link" href="https://y3llowduck.github.io/posts.html">all posts →</a>
@@ -404,7 +389,7 @@
   </section>
 
   <div class="about-strip" id="about">
-    <div class="about-inner">
+    <div class="page-col about-inner">
       <div>
         <h2>About this site</h2>
         <p>
@@ -420,32 +405,20 @@
   </footer>
 
   <script>
-    // ── terminal typewriter ──
     const out = document.getElementById('termOutput');
 
-    // each segment: { text, class, delay (ms before this segment starts typing), speed (ms/char) }
-    // null class = plain text, already-colored spans get inserted as HTML chunks
     const sequence = [
-      // line 1: prompt (instant)
       { html: '<span class="c-prompt">┌──(kali㉿kali)-[~]\n└─$ </span>', instant: true },
-      // command typed out
       { text: 'whoami', cls: 'c-cmd', speed: 80 },
-      // output appears after short pause
       { html: '\n<span class="c-output">Y3llowDuck — security engineer, OSEP candidate, occasional blogger</span>\n\n', instant: true, pause: 320 },
-      // line 2 prompt
       { html: '<span class="c-prompt">└─$ </span>', instant: true, pause: 200 },
-      // command typed
       { text: 'cat ', cls: 'c-cmd', speed: 80 },
       { text: './about.txt', cls: 'c-string', speed: 70 },
-      // output
       { html: '\n<span class="c-output">Writing about the stuff I wish someone had explained clearly.\nIf it helped me pass a box, it goes on the blog.</span>\n\n', instant: true, pause: 380 },
-      // line 3 prompt
       { html: '<span class="c-prompt">└─$ </span>', instant: true, pause: 200 },
-      // command typed
       { text: 'ls ', cls: 'c-cmd', speed: 80 },
       { text: '-la ', cls: 'c-flag', speed: 80 },
       { text: './posts/', cls: 'c-string', speed: 70 },
-      // output
       { html: '\n<span class="c-good">↓  see below</span>', instant: true, pause: 280 },
     ];
 
@@ -456,22 +429,17 @@
 
     async function typeSegment(seg) {
       if (seg.pause) await sleep(seg.pause);
-
       if (seg.instant) {
-        // remove cursor, inject html, re-append cursor
         if (out.contains(cursor)) out.removeChild(cursor);
         out.insertAdjacentHTML('beforeend', seg.html);
         out.appendChild(cursor);
         return;
       }
-
-      // typed character by character
       const span = document.createElement('span');
       if (seg.cls) span.className = seg.cls;
       if (out.contains(cursor)) out.removeChild(cursor);
       out.appendChild(span);
       out.appendChild(cursor);
-
       for (const ch of seg.text) {
         span.textContent += ch;
         await sleep(seg.speed + (Math.random() * 30 - 15));
@@ -480,11 +448,8 @@
 
     async function runSequence() {
       out.appendChild(cursor);
-      await sleep(600); // initial pause before starting
-      for (const seg of sequence) {
-        await typeSegment(seg);
-      }
-      // blink cursor stays at end — done
+      await sleep(600);
+      for (const seg of sequence) await typeSegment(seg);
     }
 
     runSequence();

@@ -379,7 +379,7 @@
       <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
       <span class="terminal-label">kali &mdash; feroxbuster AI API scan</span>
     </div>
-    <div class="terminal-body"><span class="prompt">└─$</span> <span class="cmd">feroxbuster -u http://192.168.224.22:8004 -w ai-api-endpoints.txt -x json,yaml --filter-status 404</span></div>
+    <div class="terminal-body"><span class="prompt">└─$</span> <span class="cmd">feroxbuster -u http://10.1.1.10:9876 -w ai-api-endpoints.txt -x json,yaml --filter-status 404</span></div>
   </div>
 
   <p>Flag breakdown: <code>-u</code> is the target base URL. <code>-w</code> is the wordlist to fuzz with. <code>-x json,yaml</code> appends those extensions to every word in the list, so it also tries things like <code>openapi.json</code> and <code>config.yaml</code> on top of the plain paths. <code>--filter-status 404</code> hides plain misses from the output so the terminal stays readable.</p>
@@ -400,23 +400,23 @@
       <span class="terminal-label">kali &mdash; scan results</span>
     </div>
     <div class="terminal-body"><span class="danger">404</span>      GET        1l        2w       22c Auto filtering found 404 like response and created new filter
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/chat
-<span class="ok">200</span>      GET       66l      385w     3256c http://192.168.224.22:8004/
-<span class="ok">200</span>      GET        1l        2w       61c http://192.168.224.22:8004/health
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/session/new
-<span class="ok">200</span>      GET        1l       45w     4906c http://192.168.224.22:8004/openapi.json
-<span class="ok">200</span>      GET       31l       66w      891c http://192.168.224.22:8004/redoc
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/reset
-<span class="ok">200</span>      GET        1l        1w       12c http://192.168.224.22:8004/logs/latest
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/browse
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/review
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/summarize
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/kb/add
-<span class="fn">405</span>      GET        1l        3w       31c http://192.168.224.22:8004/upload
-<span class="ok">200</span>      GET        1l        1w       18c http://192.168.224.22:8004/logs/last-tool-call
-<span class="str">307</span>      GET        0l        0w        0c http://192.168.224.22:8004/docs/ =&gt; http://192.168.224.22:8004/docs
-<span class="ok">200</span>      GET       81l      240w     3012c http://192.168.224.22:8004/docs/oauth2-redirect
-<span class="ok">200</span>      GET       31l       62w      931c http://192.168.224.22:8004/docs
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/chat
+<span class="ok">200</span>      GET       66l      385w     3256c http://10.1.1.10:9876/
+<span class="ok">200</span>      GET        1l        2w       61c http://10.1.1.10:9876/health
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/session/new
+<span class="ok">200</span>      GET        1l       45w     4906c http://10.1.1.10:9876/openapi.json
+<span class="ok">200</span>      GET       31l       66w      891c http://10.1.1.10:9876/redoc
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/reset
+<span class="ok">200</span>      GET        1l        1w       12c http://10.1.1.10:9876/logs/latest
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/browse
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/review
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/summarize
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/kb/add
+<span class="fn">405</span>      GET        1l        3w       31c http://10.1.1.10:9876/upload
+<span class="ok">200</span>      GET        1l        1w       18c http://10.1.1.10:9876/logs/last-tool-call
+<span class="str">307</span>      GET        0l        0w        0c http://10.1.1.10:9876/docs/ =&gt; http://10.1.1.10:9876/docs
+<span class="ok">200</span>      GET       81l      240w     3012c http://10.1.1.10:9876/docs/oauth2-redirect
+<span class="ok">200</span>      GET       31l       62w      931c http://10.1.1.10:9876/docs
 
 <span class="muted">[####################] - 2s       786/786     0s      found:17      errors:0</span></div>
   </div>
@@ -468,20 +468,7 @@
     The wordlist doesn't need to be exhaustive. It needs to be good enough to find the one file that then hands you everything else.
   </div>
 
-  <div class="section-title">05 &mdash; next step</div>
-  <h2>Putting it together</h2>
-
-  <p>Once you know <code>openapi.json</code> is live, don't stop at the 405s, go pull the actual spec and get the authoritative method and path table, including request bodies:</p>
-
-  <div class="terminal">
-    <div class="terminal-bar">
-      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
-      <span class="terminal-label">kali &mdash; parse the spec</span>
-    </div>
-    <div class="terminal-body"><span class="prompt">└─$</span> <span class="cmd">curl -s http://192.168.224.22:8004/openapi.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'{m.upper():6s} {p}') for p,v in d['paths'].items() for m in v]"</span></div>
-  </div>
-
-  <p>That gives you exactly what each POST endpoint expects, which is far more useful than guessing at a payload for <code>/kb/add</code> blind. Forced browsing finds what's undocumented or unlinked, the spec confirms and details what's documented. Run them together and you get a genuinely complete picture of the attack surface instead of half of it.</p>
+  <p>Forced browsing plus link extraction did the whole job here. Feroxbuster didn't just find that <code>openapi.json</code> existed, it read it and handed back the app's real, functional endpoints without me ever touching the spec by hand. That's the payoff: one scan, one command, and the attack surface is mapped.</p>
 
   <p>This workflow maps directly onto the reconnaissance phase of OffSec's OSAI (AI-300) course. Before you can test prompt injection, RAG poisoning, or jailbreaks, you need to know what's actually exposed. Same principle as AD recon before you have credentials: don't rush it, the phase before you can attack anything is the one that decides how effective everything after it is.</p>
 

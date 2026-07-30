@@ -360,10 +360,29 @@
 
   <p>So the first move was building a wordlist tuned to that structure instead of reusing a generic one. I used Claude to pull real route conventions from the OpenAI API reference, the LangServe repo, and the LiteLLM docs, and put together an <code>ai-api-endpoints.txt</code> I could point feroxbuster at.</p>
 
-  <div class="img-placeholder">
-    <div class="ph-icon">&#128190;</div>
-    <div class="ph-label">Screenshot placeholder</div>
-    <div class="ph-caption">Claude prompt used to build ai-api-endpoints.txt</div>
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">prompt &mdash; used to build ai-api-endpoints.txt</span>
+    </div>
+    <div class="terminal-body"><span class="muted">Research and compile a wordlist of real, documented API endpoint paths for three
+systems: OpenAI-compatible APIs, LangServe, and LiteLLM.
+
+For each system:
+1. Pull the endpoint paths only from official documentation or the source code
+   (OpenAI API reference, LangServe's GitHub repo/docs, LiteLLM's GitHub repo/docs).
+2. Cite the source for each path or group of paths.
+3. Do not include a path unless you can confirm it against a current source,
+   omit anything you're inferring or guessing at.
+4. Note the current version/date of the docs you pulled from, since these APIs
+   change.
+
+Output the final result as a flat plain-text wordlist, one path per line, no
+leading slash duplication issues, formatted for direct use with feroxbuster's -w
+flag. Group with comment lines (#) separating the three systems so it's still
+usable as a single combined file with ffuf/feroxbuster (most of these tools
+ignore lines starting with # only if that's their comment syntax, confirm this
+too before assuming it).</span></div>
   </div>
 
   <div class="callout note">

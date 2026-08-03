@@ -62,9 +62,10 @@ header {
   border: 1px solid;
 }
 
-.tag.red   { color: var(--red);    border-color: var(--red);    background: rgba(248,81,73,.08); }
-.tag.blue  { color: var(--blue);   border-color: var(--blue);   background: rgba(88,166,255,.08); }
-.tag.green { color: var(--green);  border-color: var(--green);  background: rgba(63,185,80,.08); }
+.tag.red    { color: var(--red);    border-color: var(--red);    background: rgba(248,81,73,.08); }
+.tag.blue   { color: var(--blue);   border-color: var(--blue);   background: rgba(88,166,255,.08); }
+.tag.green  { color: var(--green);  border-color: var(--green);  background: rgba(63,185,80,.08); }
+.tag.yellow { color: var(--yellow); border-color: var(--yellow); background: rgba(227,179,65,.08); }
 
 /* row of tags above the hero, e.g. topic/technique labels */
 .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
@@ -179,6 +180,13 @@ h2 {
   letter-spacing: 0.06em;
 }
 
+/* slot for small tag pills inside a terminal/chat header, pushed right */
+.terminal-tags {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
 .terminal-body {
   padding: 20px 22px;
   font-size: 13px;
@@ -199,6 +207,73 @@ h2 {
 .terminal-body .code2  { color: var(--yellow); }
 .terminal-body .path   { color: var(--blue); }
 
+/* ── CHAT SIMULATION (attacker/model conversation bubbles) ── */
+.chat {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 24px 0;
+  overflow: hidden;
+}
+
+.chat-body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bubble-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.bubble-row.attacker { align-items: flex-end; }
+.bubble-row.model    { align-items: flex-start; }
+
+.bubble-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.bubble-row.attacker .bubble-label { color: var(--blue); }
+.bubble-row.model .bubble-label { color: var(--muted); }
+
+.bubble {
+  max-width: 86%;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.bubble.attacker {
+  background: rgba(88,166,255,0.08);
+  border: 1px solid rgba(88,166,255,0.35);
+  color: var(--text);
+  border-bottom-right-radius: 3px;
+}
+
+.bubble.model {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: #c9d1d9;
+  border-bottom-left-radius: 3px;
+}
+
+.bubble.model.flagged {
+  border-color: rgba(248,81,73,0.4);
+  background: rgba(248,81,73,0.06);
+}
+
+.bubble .stanza { color: var(--purple); font-style: italic; }
+.bubble code { padding: 1px 5px; }
+
 /* ── CALLOUT BOXES ── */
 .callout {
   background: var(--bg2);
@@ -211,8 +286,9 @@ h2 {
   color: #c9d1d9;
 }
 
-.callout.warn { border-left-color: var(--yellow); }
-.callout.note { border-left-color: var(--green); }
+.callout.warn   { border-left-color: var(--yellow); }
+.callout.note   { border-left-color: var(--green); }
+.callout.danger { border-left-color: var(--red); }
 
 .callout-title {
   font-family: 'JetBrains Mono', monospace;
@@ -224,8 +300,9 @@ h2 {
   color: var(--blue);
 }
 
-.callout.warn .callout-title { color: var(--yellow); }
-.callout.note .callout-title { color: var(--green); }
+.callout.warn   .callout-title { color: var(--yellow); }
+.callout.note   .callout-title { color: var(--green); }
+.callout.danger .callout-title { color: var(--red); }
 
 /* ── INLINE CODE ── */
 code {
@@ -359,4 +436,5 @@ code {
   .page-wrap { padding-left: 18px; padding-right: 18px; }
   header { padding: 12px 18px; }
   .header-tags { display: none; }
+  .bubble { max-width: 96%; }
 }

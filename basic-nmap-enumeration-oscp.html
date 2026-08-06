@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basic Nmap Enumeration for OSCP | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="post.css">
+<style>
+  .hero h1 .accent { color: var(--green); }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag blue">Nmap</span>
+    <span class="tag green">Enumeration</span>
+    <span class="tag yellow">OSCP</span>
+  </div>
+
+<div class="hero">
+  <h1>Basic Nmap Enumeration for <span class="accent">OSCP</span></h1>
+  <div class="hero-meta">
+    <span>Nmap &middot; OSCP &middot; Two-Step Enumeration</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>When it comes to the OSCP exam you need to be efficient and quick with your enumeration, but your technique must be accurate too. You don't want to miss any port. That's where Nmap shines, and using it right from the start can make or break your success in pwning a box.</p>
+
+  <p>In this post I'll walk you through a solid two-step Nmap technique that I personally used during my OSCP exam, and still use on THM or HTB boxes. No need for rustscan or autorecon. Just nmap. That's it. Nothing more. And it works every time. Plus you don't have to install anything, nmap comes installed with Kali.</p>
+
+  <div class="section-title">01 &mdash; full scan</div>
+  <h2>Step 1: Full TCP Port Scan</h2>
+
+  <p>Before you dive into service enumeration or exploit searches, you need a clear view of what ports are open. I always start with this:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; full TCP port scan</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> <span class="fn">sudo nmap</span> <span class="kw">-p- -Pn -n --open -vvv -oG openPorts</span> <span class="str">10.129.156.122</span>
+
+<span class="muted">[sudo] password for kali:
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-02-04 11:24 CST
+Initiating SYN Stealth Scan at 11:24
+Scanning 10.129.156.122 [65535 ports]
+</span><span class="ok">Discovered open port 80/tcp on 10.129.156.122
+Discovered open port 22/tcp on 10.129.156.122</span>
+<span class="muted">Completed SYN Stealth Scan at 11:25, 19.67s elapsed (65535 total ports)
+Nmap scan report for 10.129.156.122</span></div>
+  </div>
+
+  <p>Flag breakdown: <code>sudo</code> is required for SYN scans. <code>-p-</code> scans all 65,535 TCP ports. <code>-Pn</code> skips host discovery and assumes the host is up. <code>--open</code> only shows open ports. <code>-vvv</code> is verbose, so you see what's happening in real time. <code>-oG openPorts</code> outputs in grepable format for quick parsing.</p>
+
+  <div class="section-title">02 &mdash; targeted scan</div>
+  <h2>Step 2: Targeted Service &amp; Version Scan</h2>
+
+  <p>Now that we know what's open, we narrow our focus to exactly those ports, and only those:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; targeted service &amp; version scan</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> <span class="fn">sudo nmap</span> <span class="kw">-p 22,80 -sCV</span> <span class="str">10.129.156.122</span>
+
+<span class="ok">22/tcp open  ssh    OpenSSH 8.2p1 Ubuntu 4ubuntu0.11
+80/tcp open  http   Apache httpd 2.4.41</span></div>
+  </div>
+
+  <p>Flag breakdown: <code>-p 22,80</code> focuses only on the known open ports. <code>-sC</code> runs Nmap's default scripts. <code>-sV</code> grabs service versions, which is super useful for CVE hunting.</p>
+
+  <div class="section-title">03 &mdash; why two steps</div>
+  <h2>Why scan in two steps instead of one</h2>
+
+  <p>I always start by scanning for open ports only, no version detection, no scripts, no banners. Why? Because it keeps the scan quick and light. You get results faster, and more importantly, you send less traffic over the wire.</p>
+
+  <p>When you're on the OffSec VPN, which can sometimes be a bit "fragile," minimizing network usage is key. The less bandwidth you use, the less likely you are to get false negatives or cause a VPN disconnection, and that's critical during a timed exam like the OSCP.</p>
+
+  <p>Another reason. On a real-world pentest, slamming the client's network with aggressive scans can lead to network instability or even bring services down. That's a fast way to get escorted out of the building, virtually or physically, and lose the contract or even your job.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; don't be loud</div>
+    If you're scanning blindly with <code>-A</code> or running heavy default scripts against all 65,535 ports, you're not being smart, you're being loud. And that can cost you time, CPU, and even trust.
+  </div>
+
+  <div class="section-title">04 &mdash; clipboard script</div>
+  <h2>Copy open ports straight to your clipboard</h2>
+
+  <p>I can read your mind. You're probably thinking: what if the initial scan turns up a lot of open ports, do I really have to copy and paste all of them by hand? That's a bit annoying. So I built a small solution based on the Spanish pentester SAvitar. It uses the nmap output from the <code>-oG</code> flag to copy those ports straight to your clipboard, so you can paste them right into the Step 2 command above. The script requires <code>xclip</code>, which can be installed via apt.</p>
+
+  <p>Here's the code:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">extractPorts.sh</span>
+    </div>
+    <div class="terminal-body"><span class="cmt">#!/bin/bash
+# Used:
+# nmap -p- --open -T5 -v -n ip -oG allPorts
+
+# Extract nmap information
+# Run as:
+# extractPorts allPorts</span>
+
+<span class="kw">function</span> extractPorts(){
+<span class="cmt"># say how to usage</span>
+<span class="kw">if</span> [ -z "$1" ]; <span class="kw">then</span>
+echo "Usage: extractPorts &lt;filename&gt;"
+<span class="kw">return</span> 1
+<span class="kw">fi</span>
+
+<span class="cmt"># Say file not found</span>
+<span class="kw">if</span> [ ! -f "$1" ]; <span class="kw">then</span>
+echo "File $1 not found"
+<span class="kw">return</span> 1
+<span class="kw">fi</span>
+
+<span class="cmt">#if this not found correctly, you can delete it, from "if" to "fi".</span>
+<span class="kw">if</span> ! grep -qE '^[^#].*/open/' "$1"; <span class="kw">then</span>
+echo "Format Invalid: Use -oG &lt;file&gt;, in nmap for a correct format."
+<span class="kw">return</span> 1
+<span class="kw">fi</span>
+
+ports="$(cat $1 | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')";
+ip_address="$(cat $1 | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
+echo -e "\n[*] Extracting information...\n" &gt; extractPorts.tmp
+echo -e "\t[*] IP Address: $ip_address" &gt;&gt; extractPorts.tmp
+echo -e "\t[*] Open ports: $ports\n" &gt;&gt; extractPorts.tmp
+echo $ports | tr -d '\n' | xclip -selection clipboard
+echo -e "[*] Ports copied to clipboard\n" &gt;&gt; extractPorts.tmp
+cat extractPorts.tmp; rm extractPorts.tmp
+}
+extractPorts "$1"</span></div>
+  </div>
+
+  <p>I added it to Kali's <code>/usr/bin</code> with execute permissions so I can run it directly.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; installed in /usr/bin</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> <span class="fn">ls -la</span> <span class="str">extractPorts</span>
+<span class="muted">-rwxr-xr-x 1 root root 1294 Sep 12  2024 extractPorts</span></div>
+  </div>
+
+  <p>Usage is pretty simple. Run the command with your nmap output:</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; extractPorts usage</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> <span class="fn">extractPorts</span>
+<span class="muted">Usage: extractPorts &lt;filename&gt;</span></div>
+  </div>
+
+  <p>Enumeration is the foundation of every good attack. Mastering tools like Nmap will make you faster, smarter, and more effective, both during the OSCP exam and in real-world pentests. Stick to this two-step method and you'll be ahead of the game.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; takeaway</div>
+    Two steps, every time: full port scan first, targeted service scan second. Simple beats aggressive, especially on a fragile VPN or a real client network.
+  </div>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+</body>
+</html>

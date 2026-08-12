@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pamper Yourself: Hide That Teachable Sidebar</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/duck.png">
+<link rel="stylesheet" href="post.css">
+<style>
+  .hero h1 .accent { color: var(--blue); }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag blue">JavaScript</span>
+    <span class="tag green">Userscript</span>
+    <span class="tag yellow">Tampermonkey</span>
+    <span class="tag">UX Hack</span>
+    <span class="tag">Claude Cowork</span>
+  </div>
+
+<div class="hero">
+  <h1>Pamper Yourself: Hide That<br>Teachable <span class="accent">Sidebar</span></h1>
+  <div class="hero-meta">
+    <span>Y3llowDuck | Web Hacks &middot; ~4 min read</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>I am really picky with course web design. Content is probably the most important part of any video course, but if my eyes are not comfortable with it, I cannot focus. That is just me. Aesthetics and the proper use of monitor real estate play a real role when I am deciding whether to buy a course. It is rare, but it can be a deal breaker. Fortunately, AI and modern browser extensions let you do wonders. Stuff I never imagined back in the 90s, using Netscape Navigator or Internet Explorer.</p>
+
+  <img src="netscape-meme.png" alt="I'll just wait here meme: 1996 excited about Netscape Navigator, 2016 skeletonized still waiting" style="display:block;max-width:340px;margin:24px auto;border:1px solid #21262d;border-radius:6px;">
+
+  <p>So I went ahead and did some research on how to fix a small UX annoyance I have with Teachable. Found this really cool browser extension called Tampermonkey (works on Firefox, Chrome, Edge, Safari, and Opera; I use Firefox). With help from Claude Cowork, I vibe coded a small script that adds a toggle for the side menu. Yay!</p>
+
+  <div class="section-title">01 &mdash; the problem</div>
+  <h2>What the Page Looked Like</h2>
+
+  <p>The course is from James Lee. I am refreshing some Azure concepts. One of the best, if not the best, courses for someone pursuing AZ-104. But Teachable's web UX has the small caveat I mentioned.</p>
+
+  <p>Here is the lesson page out of the box. The lesson list on the left is permanent. No collapse control, no keyboard shortcut, no user setting. The video and the notes get squeezed into whatever real estate is left over.</p>
+
+  <img src="teachable-sidebar-before.png" alt="Default Teachable lesson layout with the fixed left sidebar eating a third of the viewport" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+
+  <p>Two minutes with dev tools was enough to know this was fixable. The sidebar container has an id of <code>courseSidebar</code> and the main content sits inside <code>.course-mainbar</code>. That is all a userscript needs: hide the sidebar with CSS, widen the main content to fill the gap, add a floating button to toggle state, persist the choice in <code>localStorage</code> so it survives page reloads.</p>
+
+  <p>Now, I know some HTML. But I do not know enough JavaScript to code this myself. It would take me an hour if not more. So I told Claude Cowork what I needed and a few seconds later I had the suggestion: install Tampermonkey and paste in the JavaScript that does the magic.</p>
+
+  <div class="section-title">02 &mdash; the script</div>
+  <h2>The Tampermonkey Userscript</h2>
+
+  <p>Grab <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener" style="color:#e3b341;">Tampermonkey</a> from your browser's extension store, open the dashboard, paste the js code. Now make the <code>@match</code> line your course's URL and you are set. Voilà!</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">tampermonkey &mdash; sidebar-toggle.user.js</span>
+    </div>
+    <div class="terminal-body"><span class="cmt">// ==UserScript==
+// @name         Teachable Sidebar Collapse Toggle
+// @match        https://learn.cloudlee.io/courses/*/lectures/*
+// @grant        none
+// ==/UserScript==</span>
+
+<span class="kw">(function</span> () {
+    <span class="str">'use strict'</span>;
+
+    <span class="kw">var</span> <span class="fn">STORAGE_KEY</span> = <span class="str">'teachable_sidebar_collapsed'</span>;
+
+    <span class="kw">var</span> style = document.<span class="fn">createElement</span>(<span class="str">'style'</span>);
+    style.textContent = <span class="str">'body.sidebar-collapsed #courseSidebar { display: none !important; } body.sidebar-collapsed .course-mainbar { width: calc(100% - 24px) !important; margin-left: 12px !important; }'</span>;
+    document.head.<span class="fn">appendChild</span>(style);
+
+    <span class="kw">function</span> <span class="fn">applyState</span>(collapsed) {
+        document.body.classList.<span class="fn">toggle</span>(<span class="str">'sidebar-collapsed'</span>, collapsed);
+    }
+
+    <span class="kw">function</span> <span class="fn">createToggleButton</span>() {
+        <span class="kw">var</span> btn = document.<span class="fn">createElement</span>(<span class="str">'button'</span>);
+        btn.textContent = <span class="str">'&#9776; Sidebar'</span>;
+        btn.style.position = <span class="str">'fixed'</span>;
+        btn.style.top = <span class="str">'70px'</span>;
+        btn.style.left = <span class="str">'10px'</span>;
+        btn.style.zIndex = <span class="str">'9999'</span>;
+        btn.style.padding = <span class="str">'8px 12px'</span>;
+        btn.style.background = <span class="str">'#44546A'</span>;
+        btn.style.color = <span class="str">'#fff'</span>;
+        btn.style.border = <span class="str">'none'</span>;
+        btn.style.borderRadius = <span class="str">'4px'</span>;
+        btn.style.cursor = <span class="str">'pointer'</span>;
+        btn.<span class="fn">addEventListener</span>(<span class="str">'click'</span>, <span class="kw">function</span> () {
+            <span class="kw">var</span> collapsed = localStorage.<span class="fn">getItem</span>(<span class="fn">STORAGE_KEY</span>) === <span class="str">'true'</span>;
+            collapsed = !collapsed;
+            localStorage.<span class="fn">setItem</span>(<span class="fn">STORAGE_KEY</span>, collapsed);
+            <span class="fn">applyState</span>(collapsed);
+        });
+        document.body.<span class="fn">appendChild</span>(btn);
+    }
+
+    <span class="kw">var</span> collapsed = localStorage.<span class="fn">getItem</span>(<span class="fn">STORAGE_KEY</span>) === <span class="str">'true'</span>;
+    <span class="fn">applyState</span>(collapsed);
+    <span class="fn">createToggleButton</span>();
+})();</div>
+  </div>
+
+  <p>Save, reload the course page, and a small <em>&#9776; Sidebar</em> button appears in the upper left. Click once to hide the lesson list, click again to bring it back.</p>
+
+  <img src="teachable-sidebar-after.png" alt="Same lesson page with the sidebar collapsed and the toggle button visible in the upper left" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+
+  <div class="section-title">03 &mdash; how it works</div>
+  <h2>Walking Through the Code</h2>
+
+  <p>The script does four things. Let me walk through each so a JavaScript newcomer can follow along.</p>
+
+  <p><strong>The style block.</strong> This adds a tiny stylesheet to the page. It only activates when the body has a class called <code>sidebar-collapsed</code>. When that class is on, the sidebar hides and the main content stretches to fill the space. When the class comes off, everything snaps back. Think of the class like a light switch: flip it on, sidebar disappears; flip it off, sidebar returns.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">the style block</span>
+    </div>
+    <div class="terminal-body"><span class="kw">var</span> style = document.<span class="fn">createElement</span>(<span class="str">'style'</span>);
+style.textContent = <span class="str">'body.sidebar-collapsed #courseSidebar { display: none !important; } body.sidebar-collapsed .course-mainbar { width: calc(100% - 24px) !important; margin-left: 12px !important; }'</span>;
+document.head.<span class="fn">appendChild</span>(style);</div>
+  </div>
+
+  <p><strong>applyState.</strong> This tiny function is the only place in the script that adds or removes that class on the body. Keeping the logic in one spot is a discipline thing. If I later want to change how the toggle behaves, there is only one place to edit.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">applyState</span>
+    </div>
+    <div class="terminal-body"><span class="kw">function</span> <span class="fn">applyState</span>(collapsed) {
+    document.body.classList.<span class="fn">toggle</span>(<span class="str">'sidebar-collapsed'</span>, collapsed);
+}</div>
+  </div>
+
+  <p><strong>createToggleButton.</strong> Builds the little button you see in the top left. Every visual property (position, color, padding, rounded corners, cursor) is set inline in JavaScript instead of in a separate stylesheet. That way Teachable's own styles cannot accidentally override mine. The <code>zIndex</code> of 9999 is a large number that tells the browser "always draw this button on top of everything else." When you click the button, the handler reads the current value from <code>localStorage</code>, flips true to false or false to true, writes the new value back, and calls <code>applyState</code> to update the page.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">the click handler (inside createToggleButton)</span>
+    </div>
+    <div class="terminal-body">btn.<span class="fn">addEventListener</span>(<span class="str">'click'</span>, <span class="kw">function</span> () {
+    <span class="kw">var</span> collapsed = localStorage.<span class="fn">getItem</span>(<span class="fn">STORAGE_KEY</span>) === <span class="str">'true'</span>;
+    collapsed = !collapsed;
+    localStorage.<span class="fn">setItem</span>(<span class="fn">STORAGE_KEY</span>, collapsed);
+    <span class="fn">applyState</span>(collapsed);
+});</div>
+  </div>
+
+  <p><strong>The last three lines.</strong> These run the moment the page loads. They read the saved choice from <code>localStorage</code>, apply it before the button is even drawn (so you never see the sidebar flash into view and then vanish), and finally mount the button. <code>localStorage</code> is a small storage area the browser keeps for each site. It survives page reloads and even browser restarts. That is why the collapsed state feels permanent instead of something you toggle again every visit.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">page load</span>
+    </div>
+    <div class="terminal-body"><span class="kw">var</span> collapsed = localStorage.<span class="fn">getItem</span>(<span class="fn">STORAGE_KEY</span>) === <span class="str">'true'</span>;
+<span class="fn">applyState</span>(collapsed);
+<span class="fn">createToggleButton</span>();</div>
+  </div>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; note</div>
+    The selectors <code>#courseSidebar</code> and <code>.course-mainbar</code> are what Teachable uses on the course I was in today. If Teachable ships a redesign, the script breaks. Pop open dev tools, find the new selectors, swap them in. Two minute fix.
+  </div>
+
+  <div class="section-title">04 &mdash; caveats</div>
+  <h2>What This Is Not</h2>
+
+  <p>Something important to clarify. Nothing here bypasses authentication. It is purely cosmetic. Just a client side CSS toggle on a page you already have access to.</p>
+
+  <p>The <code>@match</code> line scopes the script to one course domain. Change it or broaden it to match wherever you actually need it. Keep it narrow: userscripts that run on every URL are how you accidentally break unrelated sites.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; heads up</div>
+    Userscripts execute in the page context and can read whatever the page can. Only install ones you have read end to end, and be extra careful with anything that touches forms, cookies, or storage on sites where you are logged in.
+  </div>
+
+  <div class="section-title">05 &mdash; wrap-up</div>
+  <h2>Takeaway</h2>
+
+  <p>You do not have to accept bad web UX. If the site is one you use often, forty lines of userscript and a short conversation with an LLM will usually get you what the product team did not ship. Small quality of life fixes have a much lower bar now, and the muscle you build doing them transfers straight to bigger web tinkering, whether that is browser extensions, red team tooling, or automation glue.</p>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>Y3llowDuck &mdash; Web Hacks &middot; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+</body>
+</html>

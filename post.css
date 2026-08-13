@@ -119,6 +119,12 @@ p {
   font-size: 15.5px;
 }
 
+/* images never overflow their column on narrow screens */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 /* ── SECTION HEADERS ── */
 .section-title {
   font-family: 'JetBrains Mono', monospace;
@@ -434,7 +440,10 @@ code {
 @media (max-width: 600px) {
   .compare { grid-template-columns: 1fr; }
   .page-wrap { padding-left: 18px; padding-right: 18px; }
-  header { padding: 12px 18px; }
+  /* !important is required: the post header carries inline styles, which
+     otherwise win over any stylesheet rule and squash the logo into the nav */
+  header { padding: 0 16px !important; gap: 14px; }
+  header nav { gap: 14px !important; }
   .header-tags { display: none; }
   .bubble { max-width: 96%; }
 }

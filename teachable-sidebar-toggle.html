@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pamper Yourself: Hide That Teachable Sidebar</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="icon" href="/duck.png" type="image/png">
-<link rel="apple-touch-icon" href="/duck.png">
-<link rel="stylesheet" href="post.css">
+<link rel="icon" href="/assets/img/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/img/duck.png">
+<link rel="stylesheet" href="/assets/css/post.css">
 <style>
   .hero h1 .accent { color: var(--blue); }
 </style>
@@ -41,7 +41,7 @@
 
   <p>I am really picky with course web design. Content is probably the most important part of any video course, but if my eyes are not comfortable with it, I cannot focus. That is just me. Aesthetics and the proper use of monitor real estate play a real role when I am deciding whether to buy a course. It is rare, but it can be a deal breaker. Fortunately, AI and modern browser extensions let you do wonders. Stuff I never imagined back in the 90s, using Netscape Navigator or Internet Explorer.</p>
 
-  <img src="netscape-meme.jpg" alt="I'll just wait here meme: 1996 excited about Netscape Navigator, 2016 skeletonized still waiting" style="display:block;width:100%;max-width:340px;height:auto;margin:24px auto;border:1px solid #21262d;border-radius:6px;">
+  <img src="/assets/img/teachable-sidebar-toggle/netscape-meme.jpg" alt="I'll just wait here meme: 1996 excited about Netscape Navigator, 2016 skeletonized still waiting" style="display:block;width:100%;max-width:340px;height:auto;margin:24px auto;border:1px solid #21262d;border-radius:6px;">
 
   <p>So I went ahead and did some research on how to fix a small UX annoyance I have with Teachable. Found this really cool browser extension called Tampermonkey (works on Firefox, Chrome, Edge, Safari, and Opera; I use Firefox). With help from Claude Cowork, I vibe coded a small script that adds a toggle for the side menu. Yay!</p>
 
@@ -52,7 +52,7 @@
 
   <p>Here is the lesson page out of the box. The lesson list on the left is permanent. No collapse control, no keyboard shortcut, no user setting. The video and the notes get squeezed into whatever real estate is left over.</p>
 
-  <img src="teachable-sidebar-before.png" alt="Default Teachable lesson layout with the fixed left sidebar eating a third of the viewport" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+  <img src="/assets/img/teachable-sidebar-toggle/before.png" alt="Default Teachable lesson layout with the fixed left sidebar eating a third of the viewport" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
 
   <p>Two minutes with dev tools was enough to know this was fixable. The sidebar container has an id of <code>courseSidebar</code> and the main content sits inside <code>.course-mainbar</code>. That is all a userscript needs: hide the sidebar with CSS, widen the main content to fill the gap, add a floating button to toggle state, persist the choice in <code>localStorage</code> so it survives page reloads.</p>
 
@@ -117,7 +117,7 @@
 
   <p>Save, reload the course page, and a small <em>&#9776; Sidebar</em> button appears in the upper left. Click once to hide the lesson list, click again to bring it back.</p>
 
-  <img src="teachable-sidebar-after.png" alt="Same lesson page with the sidebar collapsed and the toggle button visible in the upper left" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+  <img src="/assets/img/teachable-sidebar-toggle/after.png" alt="Same lesson page with the sidebar collapsed and the toggle button visible in the upper left" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
 
   <div class="section-title">03 &mdash; how it works</div>
   <h2>Walking Through the Code</h2>

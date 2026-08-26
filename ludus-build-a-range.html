@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a Ludus Range | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/img/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/img/duck.png">
+<link rel="stylesheet" href="/assets/css/post.css">
+<style>
+  .hero h1 .accent { color: var(--purple); }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag blue">Ludus</span>
+    <span class="tag green">Active Directory</span>
+    <span class="tag yellow">Home Lab</span>
+  </div>
+
+<div class="hero">
+  <h1>Building a <span class="accent">Ludus Range</span></h1>
+  <div class="hero-meta">
+    <span>Ludus &middot; Proxmox &middot; AD Lab &middot; ~8 min read</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>I am a firm believer in hands-on practice when learning something. This applies to AWS, pentesting, Microsoft Purview, you name it. The problem is that online platforms are becoming more and more expensive. VMware Workstation is a quick solution. But if you are serious about your career, it's better to spend $1k on a small server and set up Ludus.</p>
+
+  <p>Ludus runs on Proxmox, which is the equivalent of vSphere without all the licensing and cost drama. It is open source and runs on Debian. And it lets us deploy very complex setups or cyber ranges in a matter of minutes, including Windows.</p>
+
+  <p>Granted, you have to learn a few commands to make the magic happen. They are simple ones. Ludus is declarative, so you write the whole range in a YAML file, push it to the server, then deploy. That's it. Go grab a coffee or a Coke Zero and you come back to a full AD environment.</p>
+
+  <p>This is exactly what I did to set up a small environment for my new Purview lab. Purview is Microsoft's data governance and DLP platform, the thing that is supposed to catch data walking out the door. That topic deserves its own post and I will get to it eventually. What follows is how I built the range it runs on: range <code>PURVIEW</code>, domain <code>purview.lab</code>, VLAN 10, network 10.4.0.0/16. Client and server are 1.11.5, community license.</p>
+
+  <div class="section-title">00 &mdash; the two APIs</div>
+  <h2>Know which port you're talking to</h2>
+
+  <p>Ludus exposes two endpoints and they are not interchangeable. Get this wrong and you'll waste an hour wondering why a command that "should work" doesn't.</p>
+
+  <table class="port-table">
+    <thead>
+      <tr>
+        <th>Port</th>
+        <th>API</th>
+        <th>Scope</th>
+        <th>Reachable from</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="port-number">8080</td><td class="port-service">User API + web UI</td><td>Ranges, deploys, configs</td><td>Anywhere over WireGuard</td></tr>
+      <tr><td class="port-number">8081</td><td class="port-service">Admin API</td><td>User creation and deletion</td><td>localhost on the Ludus host only</td></tr>
+    </tbody>
+  </table>
+
+  <p>Only step 1 touches 8081. Everything after that is 8080, including admin commands that carry a <code>--user</code> flag.</p>
+
+  <div class="section-title">01 &mdash; range owner</div>
+  <h2>Create the user that owns the range</h2>
+
+  <p>Every range belongs to exactly one Ludus user, and that user ID becomes the <code>range_id</code> that prefixes every VM name. It's an admin API call, so run it on the Ludus host over SSH.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">ludus host &mdash; create the range owner</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">root@ludus:~#</span> <span class="fn">ludus users add</span> <span class="kw">--name</span> <span class="str">purview</span> <span class="kw">--userid</span> <span class="str">PURVIEW</span> <span class="kw">--url</span> <span class="str">https://127.0.0.1:8081</span>
+
+<span class="muted">+---------+------------------+-------+--------------------------------------------------+
+|  USERID | PROXMOX USERNAME | ADMIN |                     API KEY                      |
++---------+------------------+-------+--------------------------------------------------+
+| </span><span class="ok">PURVIEW</span><span class="muted"> | purview          | false | </span><span class="str">PURVIEW.Kt7wQzR4mVnLbXc9UsHaZyE3jFgTd6NkQrXiUMpq</span><span class="muted"> |
++---------+------------------+-------+--------------------------------------------------+</span></div>
+  </div>
+
+  <p>That API key is your credential for everything that follows, in this post and in anything you build on the range afterwards. The one above is invented, so don't bother.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; choose the user ID carefully</div>
+    The user ID becomes <code>range_id</code> and gets baked into every VM name in Proxmox, so <code>PURVIEW</code> gave me <code>PURVIEW-purview-dc01</code>. Changing it later means deleting the user, and that destroys the range. Keep it short too, it counts against the 15 character Windows hostname limit. And treat that API key like the full credential it is.
+  </div>
+
+  <p>Grab the WireGuard profile now so you can reach the range from your workstation later.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">ludus host &mdash; wireguard profile</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">root@ludus:~#</span> <span class="fn">ludus user wireguard</span> <span class="kw">--user</span> <span class="str">PURVIEW</span> &gt; <span class="str">purview-wireguard.conf</span>
+
+<span class="prompt">root@ludus:~#</span> <span class="fn">head</span> <span class="kw">-4</span> <span class="str">purview-wireguard.conf</span>
+<span class="muted">[Interface]
+PrivateKey = qO8Zt1mDx4uKp7Rbn2VhLc6WsEyA3jFgTd5NkQrXiUM=
+Address = 198.51.100.14/32
+MTU = 1420</span></div>
+  </div>
+
+  <div class="section-title">02 &mdash; security context</div>
+  <h2>Become the range owner</h2>
+
+  <p>Export that user API key. In this mode no <code>--user</code> flag is needed, and it can't be used, because a non admin key is already scoped to its own range.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">shell &mdash; load the key, confirm who you are</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="kw">export</span> LUDUS_API_KEY=<span class="str">'PURVIEW.Kt7wQzR4mVnLbXc9UsHaZyE3jFgTd6NkQrXiUMpq'</span>
+
+<span class="prompt">$</span> <span class="fn">ludus range status</span>
+
+<span class="muted">+---------+---------------+-----------------+---------------+-------------------+-----------------+
+| USER ID | RANGE NETWORK | LAST DEPLOYMENT | NUMBER OF VMS | DEPLOYMENT STATUS | TESTING ENABLED |
++---------+---------------+-----------------+---------------+-------------------+-----------------+
+| </span><span class="ok">PURVIEW</span><span class="muted"> |  10.4.0.0/16  |      NEVER      |       0       |  </span><span class="danger">NEVER DEPLOYED</span><span class="muted">   |      FALSE      |
++---------+---------------+-----------------+---------------+-------------------+-----------------+</span>
+<span class="cmt"># empty range, but the USER ID column reads PURVIEW. That's the check.</span></div>
+  </div>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; tip</div>
+    <code>ludus apikey</code> prompts for the key and stores it, so you don't have to export it in every new shell. The alternative is keeping an admin key loaded and targeting the range with <code>--user PURVIEW</code> on every command. Range operations stay on 8080 either way.
+  </div>
+
+  <div class="section-title">03 &mdash; templates</div>
+  <h2>Build the templates first</h2>
+
+  <p>A range clones from templates, so nothing deploys until the ones you reference exist. Check before you write a single line of YAML.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; what is already built</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus templates list</span>
+
+<span class="muted">+------------------------------------+--------------+
+|              TEMPLATE              |    STATUS    |
++------------------------------------+--------------+
+| debian-11-x64-server-template      | </span><span class="ok">&#x2705; BUILT</span><span class="muted">    |
+| debian-12-x64-server-template      | </span><span class="danger">&#x274C; NOT BUILT</span><span class="muted"> |
+| kali-x64-desktop-template          | </span><span class="danger">&#x274C; NOT BUILT</span><span class="muted"> |
+| win11-22h2-x64-enterprise-template | </span><span class="ok">&#x2705; BUILT</span><span class="muted">    |
+| win2022-server-x64-template        | </span><span class="ok">&#x2705; BUILT</span><span class="muted">    |
++------------------------------------+--------------+</span></div>
+  </div>
+
+  <p>This range needs three of those: <code>win2022-server-x64-template</code> for the DC, <code>win11-22h2-x64-enterprise-template</code> for the workstation, and <code>debian-11-x64-server-template</code> for the router Ludus builds on its own. All three have to read <span class="ok">&#x2705; BUILT</span> or the deploy dies on the first clone.</p>
+
+  <p>Anything sitting at NOT BUILT, build it and watch Packer work.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; build and follow</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus templates build</span>
+<span class="muted">[INFO]  Template building started - this will take a while. Building 1 template(s) at a time.</span>
+
+<span class="prompt">$</span> <span class="fn">ludus templates logs</span> <span class="kw">-f</span>
+<span class="muted">2026/08/25 18:04:11 ui: ==&gt; proxmox-iso.win2022: Retrieving ISO
+2026/08/25 18:04:11 ui: ==&gt; proxmox-iso.win2022: Creating VM
+2026/08/25 18:09:47 ui: ==&gt; proxmox-iso.win2022: Starting VM
+2026/08/25 18:41:02 ui: ==&gt; proxmox-iso.win2022: Waiting for WinRM to become available...</span>
+<span class="cmt"># ctrl-c stops following the log, it does not stop the build</span></div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; this is the slow part</div>
+    A full template build runs up to a few hours depending on hardware and internet speed, because Packer installs each OS from scratch. <code>--parallel N</code> builds several at once, but you get no per template logs in that mode. Good news is you only pay this once per Ludus server. Every range after that clones from finished templates in minutes.
+  </div>
+
+  <div class="section-title">04 &mdash; the config</div>
+  <h2>Define the range, and don't define the router</h2>
+
+  <p>Here's the part I did not expect. You don't create the router. Ludus deploys one automatically for every range, derived from the VLANs your VMs use. It handles routing, DHCP, DNS forwarding, and the firewall between VLANs. Omit it and you get the defaults, which is exactly what produced <code>PURVIEW-router-debian11-x64</code> at 10.4.10.254.</p>
+
+  <p>So the config is two machines: the domain controller and one Windows 11 workstation joined to it. A DC on its own is a domain with nothing in it, and nothing to practice against. The quoted <code>'EOF'</code> stops the shell from touching the <code>{{ range_id }}</code> braces.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; purview-range.yml</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">cat</span> &gt; <span class="str">purview-range.yml</span> &lt;&lt;<span class="str">'EOF'</span>
+<span class="kw">ludus:</span>
+  - <span class="kw">vm_name:</span> <span class="str">"{{ range_id }}-purview-dc01"</span>
+    <span class="kw">hostname:</span> <span class="str">purview-dc01</span>
+    <span class="kw">template:</span> <span class="str">win2022-server-x64-template</span>
+    <span class="kw">vlan:</span> <span class="ok">10</span>
+    <span class="kw">ip_last_octet:</span> <span class="ok">10</span>
+    <span class="kw">ram_gb:</span> <span class="ok">4</span>
+    <span class="kw">cpus:</span> <span class="ok">2</span>
+    <span class="kw">windows:</span>
+      <span class="kw">sysprep:</span> <span class="ok">true</span>
+    <span class="kw">domain:</span>
+      <span class="kw">fqdn:</span> <span class="str">purview.lab</span>
+      <span class="kw">role:</span> <span class="danger">primary-dc</span>
+
+  - <span class="kw">vm_name:</span> <span class="str">"{{ range_id }}-purview-ws01"</span>
+    <span class="kw">hostname:</span> <span class="str">purview-ws01</span>
+    <span class="kw">template:</span> <span class="str">win11-22h2-x64-enterprise-template</span>
+    <span class="kw">vlan:</span> <span class="ok">10</span>
+    <span class="kw">ip_last_octet:</span> <span class="ok">20</span>
+    <span class="kw">ram_gb:</span> <span class="ok">8</span>
+    <span class="kw">cpus:</span> <span class="ok">4</span>
+    <span class="kw">windows:</span>
+      <span class="kw">sysprep:</span> <span class="ok">true</span>
+    <span class="kw">domain:</span>
+      <span class="kw">fqdn:</span> <span class="str">purview.lab</span>
+      <span class="kw">role:</span> <span class="danger">member</span>
+<span class="str">EOF</span></div>
+  </div>
+
+  <p><code>role: primary-dc</code> is what promotes the first VM. Ludus installs AD DS, creates the forest for <code>purview.lab</code>, and provisions the default domain accounts. The VLAN you pick becomes the third octet of every address in the range, so VLAN 10 gives you 10.4.10.0/24 with the router sitting on .254.</p>
+
+  <p><code>role: member</code> on the second VM is the entire domain join. Ludus points the machine at the DC for DNS, joins it to <code>purview.lab</code>, and reboots it. You never see the join dialog. Both machines sit on VLAN 10, so they talk to each other without a firewall rule.</p>
+
+  <p>Windows 11 wants 8 GB to feel like a machine and not a punishment. Drop it to 4 if the host is tight, but expect it to drag.</p>
+
+  <div class="callout danger">
+    <div class="callout-title">&#x26A0; rules that break the deploy</div>
+    <code>hostname</code> must be 15 characters or fewer, and keep it literal. Putting <code>{{ range_id }}</code> in a hostname inflates it past the limit and the domain join fails. <code>vlan</code> has to be between 2 and 255. <code>ip_last_octet</code> must be unique in the VLAN, and avoid 254 because the router owns it. Spaces only, a single literal tab kills the YAML parse and the error tells you nothing useful.
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; check for tabs, silence is clean</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">grep</span> <span class="kw">-Pn</span> <span class="str">"\t"</span> <span class="str">purview-range.yml</span>
+<span class="prompt">$</span>
+<span class="cmt"># no output, no tabs, move on</span></div>
+  </div>
+
+  <div class="section-title">05 &mdash; deploy</div>
+  <h2>Push it and deploy</h2>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; set, verify, deploy</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus range config set</span> <span class="kw">-f</span> <span class="str">purview-range.yml</span>
+<span class="muted">[INFO]  Your range config has been successfully updated.</span>
+
+<span class="cmt"># confirm the server accepted it before deploying</span>
+<span class="prompt">$</span> <span class="fn">ludus range config get</span> <span class="cmd">|</span> <span class="fn">head</span> <span class="kw">-6</span>
+<span class="muted">ludus:
+  - vm_name: "{{ range_id }}-purview-dc01"
+    hostname: purview-dc01
+    template: win2022-server-x64-template
+    vlan: 10
+    ip_last_octet: 10</span>
+
+<span class="cmt"># nothing exists yet, so no --limit and no tags</span>
+<span class="prompt">$</span> <span class="fn">ludus range deploy</span>
+<span class="muted">[INFO]  range deploy started</span>
+
+<span class="prompt">$</span> <span class="fn">ludus range logs</span> <span class="kw">-f</span>
+<span class="muted">PLAY [Pre run checks] **********************************************************
+
+TASK [Acquire session ticket] **************************************************
+changed: [localhost]
+
+TASK [Check for valid dynamic inventory] ***************************************
+ok: [localhost] =&gt; {
+    "changed": false,
+    "msg": "Dynamic inventory loaded!"
+}
+
+PLAY [Create the router] *******************************************************
+TASK [ludus_proxmox_clone : Clone template debian-11-x64-server-template] *******
+changed: [PURVIEW-router-debian11-x64]
+
+PLAY [Build the Windows VMs] ***************************************************
+TASK [ludus_win_domain : Promote to primary domain controller] *****************
+changed: [PURVIEW-purview-dc01]
+
+TASK [ludus_win_domain : Join purview.lab] *************************************
+changed: [PURVIEW-purview-ws01]</span></div>
+  </div>
+
+  <p>Order of operations: the router is cloned and configured first, the VLAN and firewall come up, then the DC is cloned, syspreped, promoted to primary domain controller for <code>purview.lab</code>, and rebooted. The workstation goes last, because it cannot join a domain that does not exist yet.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; expect 30 to 60 minutes, and don't touch it</div>
+    Promoting a domain controller takes several reboots and Ansible blocks on <code>wait_for_connection</code> between each one. Long silences in the log are normal. Silence is not a hang. Never start a second deploy while status reads DEPLOYING. If you need to stop, use <code>ludus range abort</code>.
+  </div>
+
+  <div class="section-title">06 &mdash; verify</div>
+  <h2>Verify it actually built</h2>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; ludus range status</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus range status</span>
+
+<span class="muted">+---------+---------------+------------------+---------------+-------------------+-----------------+
+| USER ID | RANGE NETWORK | LAST DEPLOYMENT  | NUMBER OF VMS | DEPLOYMENT STATUS | TESTING ENABLED |
++---------+---------------+------------------+---------------+-------------------+-----------------+
+| </span><span class="ok">PURVIEW</span><span class="muted"> |  10.4.0.0/16  | 2026-08-25 19:12 |       3       |      </span><span class="ok">SUCCESS</span><span class="muted">      |      FALSE      |
++---------+---------------+------------------+---------------+-------------------+-----------------+
++------------+-----------------------------+-------+-------------+
+| PROXMOX ID |           VM NAME           | POWER |     IP      |
++------------+-----------------------------+-------+-------------+
+|    119     | </span><span class="ok">PURVIEW-router-debian11-x64</span><span class="muted"> |  On   | 10.4.10.254 |
+|    120     | </span><span class="ok">PURVIEW-purview-dc01</span><span class="muted">        |  On   | 10.4.10.10  |
+|    121     | </span><span class="ok">PURVIEW-purview-ws01</span><span class="muted">        |  On   | 10.4.10.20  |
++------------+-----------------------------+-------+-------------+</span></div>
+  </div>
+
+  <p>Three VMs, router on .254, DC and workstation on their declared static IPs. Note again that the router was never in my config. Ludus created it.</p>
+
+  <p>Now, we are not done yet. The range lives on 10.4.10.0/24 behind the Ludus host, so nothing on your workstation can reach it until the tunnel is up. We need the WireGuard profile from section 01. Copy <code>purview-wireguard.conf</code> down from the Ludus host, Add Tunnel in the WireGuard client, Activate.</p>
+
+  <img src="/assets/img/ludus-build-a-range/wireguard-purview-tunnel.png" alt="WireGuard client on Windows with the purview tunnel active, showing a recent handshake and traffic counters" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+
+  <p>Active does not mean much on its own. I look at Latest handshake. A few seconds old with the transfer counters moving and the tunnel is up. No handshake at all and the profile is dead, green icon or not.</p>
+
+  <p>Each range user gets its own profile, so I keep kali, ludus and purview separate in that list. Different credentials, not copies.</p>
+
+  <p>You can check the same thing from the Ludus host if the client side looks wrong and you want to know which end is at fault.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">ludus host &mdash; peer handshakes</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">root@ludus:~#</span> <span class="fn">wg show</span>
+
+<span class="muted">interface: wg0
+  public key: Xk2pQd7VnR4mLbTc9UwHsZaY3eFgJt6NkQrXiUM=
+  private key: (hidden)
+  listening port: 51820
+
+peer: 9fRt2KmVx7NpQc4LbZa6HsWyE3jUgTd5NkQrXiUM=
+  endpoint: 203.0.113.42:54924
+  allowed ips: 198.51.100.14/32
+  </span><span class="ok">latest handshake: 41 seconds ago</span><span class="muted">
+  transfer: 1.30 MiB received, 7.48 MiB sent
+  persistent keepalive: every 25 seconds</span></div>
+  </div>
+
+  <p>Sent and received are backwards from what the client shows, which is right. What the client sent is what the server received. A peer with no handshake line never came up at all.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; default credentials</div>
+    These apply when the config has no <code>defaults</code> block, which is the case here. <code>purview\domainadmin</code>, <code>purview\domainuser</code>, and the local <code>localuser</code> account all use <code>password</code>. Autologon switches to the domain user once a machine is joined.
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">workstation &mdash; tunnel up, port open</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">PS C:\Users\jose&gt;</span> <span class="fn">Test-NetConnection</span> <span class="str">10.4.10.10</span> <span class="kw">-Port</span> <span class="ok">3389</span>
+
+<span class="muted">ComputerName     : 10.4.10.10
+RemoteAddress    : 10.4.10.10
+RemotePort       : 3389
+InterfaceAlias   : purview
+SourceAddress    : 198.51.100.14
+</span><span class="ok">TcpTestSucceeded : True</span></div>
+  </div>
+
+  <p>If that comes back False, stop. The problem is the tunnel or the Ludus host, not the range, and no amount of poking at the DC will fix it.</p>
+
+  <p>With the tunnel up there is no RDP file to download and nothing to configure beyond the IP. I open MobaXterm, new RDP session, 10.4.10.10, <code>purview\domainadmin</code> and the default password. MobaXterm keeps every session in one tabbed window instead of scattering RDP clients all over the desktop, which matters more the moment the range is bigger than two machines.</p>
+
+  <p>Once you are on the DC, open Active Directory Users and Computers. That is the check. <code>purview.lab</code> with its OU tree under it means the promotion worked, and PURVIEW-WS01 sitting in the Workstations OU means the join worked.</p>
+
+  <img src="/assets/img/ludus-build-a-range/aduc-purview-forest.png" alt="Active Directory Users and Computers on the DC showing PURVIEW-WS01 inside the Workstations organizational unit of purview.lab" style="width:100%;border:1px solid #21262d;border-radius:6px;margin:16px 0;">
+
+  <p>No domain in the console means the promotion failed and everything you build on this range fails with it. Domain there but no computer object means the workstation cloned and never joined. Check DNS on the workstation first, that is what it usually is.</p>
+
+  <p>Last thing. Snapshot the clean range before you build anything on top of it. Restoring costs seconds, redeploying costs an hour.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; snapshot the baseline</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus snapshots create</span> <span class="str">baseline</span> <span class="kw">-d</span> <span class="str">"clean dc + joined ws01"</span>
+<span class="muted">[INFO]  Snapshot baseline created for 3 VM(s)</span>
+
+<span class="prompt">$</span> <span class="fn">ludus snapshots list</span>
+<span class="muted">VM 120 (PURVIEW-purview-dc01)
+&#9492;&#9472;&#9472; baseline 2026-08-25 19:26:04 (clean dc + joined ws01) [includes RAM]
+    &#9492;&#9472;&#9472; current  (You are here!)
+
+VM 121 (PURVIEW-purview-ws01)
+&#9492;&#9472;&#9472; baseline 2026-08-25 19:26:11 (clean dc + joined ws01) [includes RAM]
+    &#9492;&#9472;&#9472; current  (You are here!)</span></div>
+  </div>
+
+  <p>Rolling back later is <code>ludus snapshots revert baseline</code>. Add <code>-n 121</code> to put only the workstation back and leave the DC where it is.</p>
+
+  <div class="section-title">07 &mdash; grow the range</div>
+  <h2>Adding the next machine</h2>
+
+  <p>Every VM after these two is the same three steps: append it to the YAML, push the file, deploy. The difference is that now there is something running you don't want rebuilt, so scope the deploy instead of firing the whole range again.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; deploy one VM</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">$</span> <span class="fn">ludus range config set</span> <span class="kw">-f</span> <span class="str">purview-range.yml</span>
+<span class="muted">[INFO]  Your range config has been successfully updated.</span>
+
+<span class="prompt">$</span> <span class="fn">ludus range deploy</span> <span class="kw">--limit</span> <span class="str">PURVIEW-purview-ws02</span>
+<span class="muted">[INFO]  range deploy started</span></div>
+  </div>
+
+  <p>The name after <code>--limit</code> is the rendered <code>vm_name</code>, range_id and all, not the hostname. Get it wrong and Ansible matches nothing, the play ends in seconds, and the log reads like a success.</p>
+
+  <div class="callout warn">
+    <div class="callout-title">&#x26A0; config set replaces, it does not merge</div>
+    The file you push is the whole range, not a patch. Keep every machine in it. Push a file with only the new box and you have just told Ludus that one box is your entire range.
+  </div>
+
+  <div class="section-title">08 &mdash; cheat sheet</div>
+  <h2>Commands worth keeping</h2>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">quick reference</span>
+    </div>
+    <div class="terminal-body"><span class="cmt"># admin API, on the Ludus host only, port 8081</span>
+<span class="fn">ludus users add</span> <span class="kw">--name</span> <span class="str">&lt;name&gt;</span> <span class="kw">--userid</span> <span class="str">&lt;ID&gt;</span> <span class="kw">--url</span> <span class="str">https://127.0.0.1:8081</span>
+
+<span class="cmt"># user API, port 8080</span>
+<span class="fn">ludus range status</span>          <span class="cmt"># deployment state and live IPs</span>
+<span class="fn">ludus range logs -f</span>         <span class="cmt"># follow the running deploy</span>
+<span class="fn">ludus range errors</span>          <span class="cmt"># failures from the last run</span>
+<span class="fn">ludus range deploy</span> <span class="kw">--limit</span> <span class="str">&lt;vm_name&gt;</span>  <span class="cmt"># deploy or redeploy one VM</span>
+<span class="fn">ludus range abort</span>           <span class="cmt"># stop a running deploy</span>
+<span class="fn">ludus range gettags</span>         <span class="cmt"># list valid deploy tags</span>
+<span class="fn">ludus templates list</span>        <span class="cmt"># available templates and build state</span>
+<span class="fn">ludus templates build</span>       <span class="cmt"># build all templates, takes hours</span>
+<span class="fn">ludus user wireguard</span>        <span class="cmt"># VPN profile for reaching the range</span></div>
+  </div>
+
+  <p>That's a working range: an automatic router, a domain controller running <code>purview.lab</code>, a workstation joined to it, and a snapshot to roll back to. Everything after this is the same three steps, so the range grows as fast as you can write YAML.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; one thing I skipped</div>
+    None of this runs until Ludus itself is installed. The official docs cover it well and I am not going to repeat them here. Mine runs on a GMKtec EVO-X1 with a Ryzen AI 9 HX-370. Around a thousand dollars, quiet enough to sit on a desk, and it carries a range like this without complaining, with room for many more.
+  </div>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+</body>
+</html>

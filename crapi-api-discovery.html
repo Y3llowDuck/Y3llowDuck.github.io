@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Pentesting with crAPI | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/img/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/img/duck.png">
+<link rel="stylesheet" href="/assets/css/post.css">
+<style>
+  .hero h1 .accent { color: var(--green); }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag green">crAPI</span>
+    <span class="tag blue">API Security</span>
+    <span class="tag yellow">Burp Suite</span>
+    <span class="tag red">Docker</span>
+  </div>
+
+<div class="hero">
+  <h1>API Pentesting with <span class="accent">crAPI</span></h1>
+  <div class="hero-meta">
+    <span>OWASP crAPI &middot; Kali &middot; Burp &middot; ~5 min read</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>Windows Active Directory pentesting is cool and sexy. But the reality is that bad actors use "the front door" to get access to a company's resources. And that door is usually an externally facing app. This is the reason why API and web pentesting is so important, and why it is gaining more relevance in today's cybersecurity landscape. Traditional web apps with three tiers are things of the past. Now they use APIs. And those may be well documented or not.</p>
+
+  <p>Getting our hands dirty and learning the basics of API pentesting is actually easy. There's already a free docker app called crAPI that we can use to practice. It is very close to a real API application and easy to deploy.</p>
+
+  <p>This is the 1st in a series of two posts where I will show how to test API applications. On this 1st post I will explain in detail how to configure crAPI and the basic docker commands we need to start and stop the app, once we are done with our testing.</p>
+
+  <p>crAPI stands for "completely ridiculous API." It's OWASP's intentionally vulnerable API, built by Traceable AI and donated to OWASP. WebGoat is more for general web vulnerabilities. crAPI is built around the OWASP API Top 10, so you get broken object-level authorization, excessive data exposure, SSRF, the API-specific stuff you won't find on WebGoat.</p>
+
+  <p>One thing to know before you start. crAPI isn't a single container. It's a Docker Compose stack running Go, Java, Python, MongoDB and PostgreSQL together, which is why every command below goes through <code>docker compose</code> instead of plain <code>docker</code>.</p>
+
+  <p>I'm running Kali on a MacBook Pro with Apple Silicon, so my guest is arm64. But every image in this stack now publishes a native arm64 build, so nothing gets emulated. And the same exact commands should also work on Windows. But leave me a comment below if that's not the case.</p>
+
+  <table class="port-table">
+    <tr><th>setting</th><th>value</th></tr>
+    <tr><td>guest_os</td><td>Kali Linux 2026.1, codename kali-rolling</td></tr>
+    <tr><td>host_hardware</td><td>MacBook Pro 2024, Apple Silicon (ARM64)</td></tr>
+    <tr><td>guest_arch</td><td>arm64 (aarch64)</td></tr>
+  </table>
+
+  <div class="section-title">01 &mdash; prerequisites</div>
+
+  <p>Docker runs the containers. Docker Compose starts the several related ones crAPI needs together as one stack.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; install docker and compose</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">kali@kali:~$</span> <span class="fn">sudo apt update</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">sudo apt install</span> <span class="kw">-y</span> <span class="str">docker.io docker-compose git</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">sudo systemctl enable</span> <span class="kw">--now</span> <span class="str">docker</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">sudo usermod</span> <span class="kw">-aG</span> <span class="str">docker $USER</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">newgrp docker</span></div>
+  </div>
+
+  <p>On Kali, Docker Engine is the <code>docker.io</code> package, not <code>docker</code>. A separate, unrelated package already uses that name. And the <code>docker-compose</code> package on Kali is Compose v2, so it gives you the <code>docker compose</code> subcommand, not the old hyphenated v1 tool.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; verify</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">kali@kali:~$</span> <span class="fn">docker</span> <span class="kw">--version</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">docker compose version</span></div>
+  </div>
+
+  <div class="section-title">02 &mdash; clone and start</div>
+
+  <p><code>-f</code> points to the compose file to use. <code>--compatibility</code> applies the resource limits it defines, which Compose otherwise ignores. <code>-d</code> runs everything in the background.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; bring the stack up</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">kali@kali:~$</span> <span class="fn">mkdir</span> <span class="kw">-p</span> <span class="str">~/src</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">cd</span> <span class="str">~/src</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">git clone</span> <span class="str">https://github.com/OWASP/crAPI</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">cd</span> <span class="str">crAPI/deploy/docker</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">docker compose</span> <span class="kw">-f</span> <span class="str">docker-compose.yml</span> <span class="kw">--compatibility</span> <span class="fn">up</span> <span class="kw">-d</span>
+
+<span class="cmt"># then confirm every container is healthy, not Restarting</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">docker ps</span> <span class="kw">-a</span></div>
+  </div>
+
+  <p>Two URLs come out of this. The app itself is on <code>http://127.0.0.1:8888</code>. MailHog, which catches every email crAPI tries to send, is on <code>http://127.0.0.1:8025</code>. You'll need the second one sooner than you'd think.</p>
+
+  <div class="section-title">03 &mdash; watch what the app actually calls</div>
+
+  <p>No scanners, no wordlists. Just use the app with Burp in the middle, and the frontend will tell you where its API lives. You don't have credentials and you don't need them yet. The failures are informative on their own.</p>
+
+  <p>Point the browser's proxy at Burp, turn intercept off so traffic just accumulates in the history, and load <code>http://127.0.0.1:8888</code>.</p>
+
+  <p><strong>Start by entering the wrong credentials.</strong> Type anything into the login form. The point isn't to get in, it's to see what the form does when you submit it. To inspect the responses, good or bad.</p>
+
+  <div class="http-pair">
+    <div class="http-block req">
+      <div class="http-label">REQUEST</div>
+      <div class="http-body"><span class="verb">POST</span> /identity/api/auth/login HTTP/1.1
+<span class="hdr">Host:</span> 127.0.0.1:8888
+<span class="hdr">Content-Type:</span> application/json
+
+{<span class="key">"email"</span>:<span class="str">"admin@crapi.local"</span>,<span class="key">"password"</span>:<span class="str">"password123"</span>}</div>
+    </div>
+    <div class="http-block res">
+      <div class="http-label">RESPONSE</div>
+      <div class="http-body">HTTP/1.1 <span class="bad">401</span>
+<span class="hdr">Content-Type:</span> application/json
+
+{
+  <span class="key">"token"</span>: null,
+  <span class="key">"type"</span>: <span class="str">"Bearer"</span>,
+  <span class="key">"message"</span>: <span class="str">"Invalid Credentials"</span>,
+  <span class="key">"mfaRequired"</span>: false
+}</div>
+    </div>
+  </div>
+
+  <p>Using wrong credentials, for example, shows that there's a REST endpoint at <code>/identity/api/auth/login</code>. And it takes a JSON, not a form post. It gives us back a <code>token</code> field with a <code>Bearer</code> type, which means the whole app runs on JWTs. None of that was on the page. And this is an important piece of information.</p>
+
+  <p><strong>Now let's sign up through the UI and watch the request.</strong></p>
+
+  <div class="http-pair">
+    <div class="http-block req">
+      <div class="http-label">REQUEST</div>
+      <div class="http-body"><span class="verb">POST</span> /identity/api/auth/signup HTTP/1.1
+<span class="hdr">Host:</span> 127.0.0.1:8888
+<span class="hdr">Content-Type:</span> application/json
+
+{<span class="key">"name"</span>:<span class="str">"duck"</span>,<span class="key">"email"</span>:<span class="str">"duck@example.com"</span>,
+ <span class="key">"number"</span>:<span class="str">"5551234567"</span>,<span class="key">"password"</span>:<span class="str">"Quack!123"</span>}</div>
+    </div>
+    <div class="http-block res">
+      <div class="http-label">RESPONSE</div>
+      <div class="http-body">HTTP/1.1 <span class="ok">200</span>
+<span class="hdr">Content-Type:</span> application/json
+
+{
+  <span class="key">"message"</span>: <span class="str">"User registered successfully! Please Login."</span>,
+  <span class="key">"status"</span>: 200
+}</div>
+    </div>
+  </div>
+
+  <p>Use an <code>@example.com</code> address. crAPI routes mail for that domain to MailHog, so the message is guaranteed to land somewhere you can read it. Our registration attempt creates a vehicle for the new account and mails you its details. That email will contain a VIN and pincode.</p>
+
+  <p><strong>Now log in with your new credentials.</strong></p>
+
+  <div class="http-pair">
+    <div class="http-block res">
+      <div class="http-label">RESPONSE</div>
+      <div class="http-body">HTTP/1.1 <span class="ok">200</span>
+<span class="hdr">Content-Type:</span> application/json
+
+{
+  <span class="key">"token"</span>: <span class="str">"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi..."</span>,
+  <span class="key">"type"</span>: <span class="str">"Bearer"</span>,
+  <span class="key">"message"</span>: <span class="str">""</span>,
+  <span class="key">"mfaRequired"</span>: false
+}</div>
+    </div>
+  </div>
+
+  <p>Compare that against the 401 from a minute ago. The response structure does not change, only the contents. That's a well-behaved API telling you exactly how it works.</p>
+
+  <p><strong>Then click through the app.</strong> Every screen fires XHR calls, and this is where the API prefix comes from. Here's where Burp comes handy and the initial OSINT starts taking place.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">burp &mdash; proxy history, filtered to the target</span>
+    </div>
+    <div class="terminal-body"><span class="kw">POST</span>  <span class="path">/identity/api/auth/signup</span>
+<span class="kw">POST</span>  <span class="path">/identity/api/auth/login</span>
+<span class="kw">GET</span>   <span class="path">/identity/api/v2/user/dashboard</span>
+<span class="kw">GET</span>   <span class="path">/identity/api/v2/vehicle/vehicles</span>
+<span class="kw">GET</span>   <span class="path">/community/api/v2/community/posts/recent</span>
+<span class="kw">GET</span>   <span class="path">/workshop/api/shop/products</span></div>
+  </div>
+
+  <p>Here's what we now know: there are three services, each with its own versioned prefix under <code>/api/</code>. Note that <code>auth</code> sits outside the version while everything else is under <code>v2</code>. A version number in a path implies a <code>v1</code> that may still be listening, and nothing in the UI will ever call it.</p>
+
+  <p>Here's one of those calls in full.</p>
+
+  <div class="http-pair">
+    <div class="http-block req">
+      <div class="http-label">REQUEST</div>
+      <div class="http-body"><span class="verb">GET</span> /identity/api/v2/user/dashboard HTTP/1.1
+<span class="hdr">Host:</span> 127.0.0.1:8888
+<span class="hdr">Authorization:</span> Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...</div>
+    </div>
+    <div class="http-block res">
+      <div class="http-label">RESPONSE</div>
+      <div class="http-body">HTTP/1.1 <span class="ok">200</span>
+<span class="hdr">Content-Type:</span> application/json
+
+{
+  <span class="key">"id"</span>: 6,
+  <span class="key">"name"</span>: <span class="str">"duck"</span>,
+  <span class="key">"email"</span>: <span class="str">"duck@example.com"</span>,
+  <span class="key">"number"</span>: <span class="str">"5551234567"</span>,
+  <span class="key">"picture_url"</span>: null,
+  <span class="key">"video_url"</span>: null,
+  <span class="key">"video_name"</span>: null,
+  <span class="key">"video_id"</span>: 0,
+  <span class="key">"available_credit"</span>: 100.0,
+  <span class="key">"role"</span>: <span class="str">"ROLE_USER"</span>
+}</div>
+    </div>
+  </div>
+
+  <p>Read that response again. We asked for a dashboard and the API gives us an internal <code>id</code>, a phone number, an account balance and a role string. Nothing here seems wrong. But an object carrying a sequential <code>id</code> is exactly the shape broken object-level authorization takes.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; this is your lab, keep it that way</div>
+    crAPI is deliberately vulnerable, and poking at it is only appropriate because the target is a container on your own machine. Leave <code>LISTEN_IP</code> at its default <code>127.0.0.1</code> so none of this is reachable from the rest of your network.
+  </div>
+
+  <div class="section-title">04 &mdash; stop it when you're done</div>
+
+  <p><code>docker compose down</code> stops and removes every container and network Compose created, the reverse of <code>up</code>. Unlike a plain <code>docker stop</code>, it also tears down the network the services use to reach each other by name, which avoids stale state before the next start. It does not delete the images, so the next run doesn't re-download anything.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; tear it down and confirm</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">kali@kali:~$</span> <span class="fn">cd</span> <span class="str">~/src/crAPI/deploy/docker</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">docker compose down</span>
+<span class="prompt">kali@kali:~$</span> <span class="fn">docker ps</span>
+
+<span class="cmt"># empty list means everything is stopped</span></div>
+  </div>
+
+  <p>So there it is. Setting up a local API app for pentesting is not that hard with dockers. And we can use Burp, feroxbuster, even Claude Code or Codex to start poking around and look for any API misconfiguration. But let's leave those details for a follow up article.</p>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+</body>
+</html>

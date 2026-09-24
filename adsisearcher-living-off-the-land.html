@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Living Off the Land with [adsisearcher] | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/img/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/img/duck.png">
+<link rel="stylesheet" href="/assets/css/post.css">
+<style>
+  .hero h1 .accent { color: var(--green); }
+  .page-wrap p a { color: var(--green); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  .page-wrap p a:hover { color: #56d364; }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag green">PowerShell</span>
+    <span class="tag blue">Active Directory</span>
+    <span class="tag yellow">LDAP</span>
+    <span class="tag red">Living Off the Land</span>
+  </div>
+
+<div class="hero">
+  <h1>Living Off the Land with <span class="accent">[adsisearcher]</span></h1>
+  <div class="hero-meta">
+    <span>Windows &middot; PowerShell &middot; no RSAT, no imports &middot; ~6 min read</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>If you've done any Active Directory work, you've probably reached for the ActiveDirectory PowerShell module, or a tool like BloodHound. Those are great. But they have to be installed, imported, or dropped onto the machine first. <code>[adsisearcher]</code> is already part of Windows. You do not have to install anything. And that's exactly why it's worth knowing. Any domain user can run it with nothing but the PowerShell window that's already open.</p>
+
+  <p><code>[adsisearcher]</code> is a PowerShell type accelerator. That's just a short, friendly name for a longer .NET class, the way <code>[xml]</code> stands in for a big XML type. Here the class is <code>System.DirectoryServices.DirectorySearcher</code>, and it ships with the framework, so it's already sitting on every Windows box. Think of it as a tiny search box wired straight into Active Directory. You hand it a question, it asks the nearest domain controller, and it hands you back the answer.</p>
+
+  <p>When you cast a string to <code>[adsisearcher]</code>, PowerShell quietly does the boring part for you. It finds the current domain, binds to it using the logon token you already have, and points a searcher at the filter you gave it. No credentials to type, no module to import, no new program on disk.</p>
+
+  <p>Let me give you a few examples. Four, to be more specific, so you can get an idea of how powerful yet simple this thing is.</p>
+
+  <div class="section-title">01 &mdash; read exactly when a password expires</div>
+
+  <p>This one reads the precise date and time a user's password will expire, straight from a domain controller. One line.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">powershell &mdash; when does j.doe's password expire?</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">PS C:\&gt;</span> <span class="kw">$s</span>=<span class="fn">[adsisearcher]</span><span class="str">"(sAMAccountName=j.doe)"</span>;<span class="kw">$s</span>.ReferralChasing=<span class="str">"None"</span>;<span class="kw">$s</span>.PropertiesToLoad.Add(<span class="str">"msDS-UserPasswordExpiryTimeComputed"</span>)|<span class="fn">Out-Null</span>;<span class="fn">[datetime]::FromFileTime</span>(<span class="kw">$s</span>.FindOne().Properties[<span class="str">"msds-userpasswordexpirytimecomputed"</span>][0])
+
+<span class="muted">Wednesday, November 4, 2026 6:17:07 PM</span></div>
+  </div>
+
+  <p>It's four small statements joined by semicolons. Because this is the first one, let me walk through each part. The rest of the post reuses the same moves, so it's worth the two minutes here.</p>
+
+  <p><strong>1. <code>$s=[adsisearcher]"(sAMAccountName=j.doe)"</code></strong> binds the searcher to the domain and sets the filter. No credentials, no import. A default domain user has everything needed to run it.</p>
+
+  <p><strong>2. <code>$s.ReferralChasing="None"</code></strong> keeps the query on the one domain controller you're already talking to. When a DC can't answer part of a query it hands back a referral pointing at another server, and chasing those means extra binds and extra noise, sometimes a query that hangs on a partition you never cared about. <code>None</code> makes it faster and predictable.</p>
+
+  <p><strong>3. <code>$s.PropertiesToLoad.Add("msDS-UserPasswordExpiryTimeComputed")|Out-Null</code></strong> tells the DC to send back just that one attribute instead of every field on the object. The <code>|Out-Null</code> is only there because <code>.Add()</code> returns the new index of the item, and we don't want that number printed. That attribute is special: it isn't stored anywhere. The DC calculates it on the fly from the account's <code>pwdLastSet</code> and whatever password policy applies. Ask for it by name and the DC just does the math for you.</p>
+
+  <p><strong>4. <code>[datetime]::FromFileTime($s.FindOne().Properties["msds-userpasswordexpirytimecomputed"][0])</code></strong> runs the query and fixes the format. <code>FindOne()</code> returns the first match, <code>.Properties["..."]</code> is a collection so <code>[0]</code> grabs the value, and that value is a Windows FILETIME, a big count of ticks since the year 1601. Useless raw. <code>FromFileTime()</code> turns it into a date you can act on.</p>
+
+  <p>One small note: I queried the property key in all lowercase, <code>msds-userpasswordexpirytimecomputed</code>. That's not required. The <code>Properties</code> collection is case-insensitive, so any casing works. It just prints its keys back in lowercase, which is the casing you'll see when you enumerate the results yourself, and that's the habit I picked up. And why does an attacker care about an expiry date? It tells you which accounts are about to rotate and which passwords are going stale, so you can time a spray without walking an account into lockout. All from a read that never touches the account.</p>
+
+  <div class="section-title">02 &mdash; list a user's group membership</div>
+
+  <p>This example is very similar to the previous one, it just has a different attribute. Instead of the expiry time, it asks for <code>memberOf</code>.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">powershell &mdash; what groups is chepe in?</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">PS C:\&gt;</span> (<span class="fn">[adsisearcher]</span><span class="str">"(sAMAccountName=chepe)"</span>).FindOne().Properties[<span class="str">"memberof"</span>]
+
+<span class="muted">CN=Domain Admins,CN=Users,DC=purview,DC=lab
+CN=Remote Desktop Users,CN=Builtin,DC=purview,DC=lab</span></div>
+  </div>
+
+  <p>Each line is the full path to a group <code>chepe</code> belongs to. Read the first one again. An account that's in Domain Admins is exactly the kind of thread you pull on, and you found it without touching that account or opening a single admin tool.</p>
+
+  <p>One thing for newcomers, so the output doesn't confuse you later: <code>memberOf</code> lists direct groups only. It won't show <code>Domain Users</code>, which is stored separately as the primary group, and it won't expand nested groups. For a first look that's fine. Just know the real membership can run deeper than what prints.</p>
+
+  <div class="section-title">03 &mdash; find every password that never expires</div>
+
+  <p>This one widens the net. Instead of one user, ask the whole directory for accounts whose password is set to never expire. Those are almost always service accounts, and service accounts are where the good stuff lives.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">powershell &mdash; passwords set to never expire</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">PS C:\&gt;</span> (<span class="fn">[adsisearcher]</span><span class="str">"(&amp;(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=65536))"</span>).FindAll() | <span class="fn">%</span>{ <span class="kw">$_</span>.Properties[<span class="str">"samaccountname"</span>][0] }
+
+<span class="muted">svc_sql
+svc_backup
+svc_veeam
+adm_helpdesk</span></div>
+  </div>
+
+  <p>That <code>userAccountControl:1.2.840.113556.1.4.803:=65536</code> looks awful, but it's just an LDAP bitwise filter asking for the DONT_EXPIRE_PASSWORD flag. You don't have to memorize the number. You have to know the trick exists, because it turns "read one account" into "list every account with a given setting." Swap <code>65536</code> for other flag values and you can hunt disabled accounts, smartcard-required accounts, and more.</p>
+
+  <p><code>FindAll()</code> instead of <code>FindOne()</code> returns everything that matches, and the <code>| %{ ... }</code> at the end is shorthand for <code>ForEach-Object</code>, pulling just the account name out of each result so you get a clean list.</p>
+
+  <div class="section-title">04 &mdash; check AD accounts description field</div>
+
+  <p>Last one, and it's the one that still surprises some people. Ask for every account that has a description set and print it.</p>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">powershell &mdash; skim every description field</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">PS C:\&gt;</span> (<span class="fn">[adsisearcher]</span><span class="str">"(description=*)"</span>).FindAll() | <span class="fn">%</span>{ <span class="kw">$_</span>.Properties[<span class="str">"samaccountname"</span>][0]+<span class="str">' :: '</span>+<span class="kw">$_</span>.Properties[<span class="str">"description"</span>][0] }
+
+<span class="muted">svc_sql :: SQL service account - temp pw Winter2025!
+guest :: Built-in account for guest access
+svc_backup :: nightly backup runner, do not disable</span></div>
+  </div>
+
+  <p>The description field is free text that admins fill in for their own convenience, and people still park things like "temp pw Winter2025" in there far more often than they should. It's a plain read, it never touches the accounts, and every now and then it hands you a credential outright. Same one line, a different filter, a different attribute. That's the pattern the whole post is built on.</p>
+
+  <div class="section-title">05 &mdash; so just deny LDAP read, right?</div>
+
+  <p>Now, the one million dollar question. How do we stop all this? Is that even possible? Can we just take away LDAP read permissions, which is what runs under the hood, to reduce the risk of misuse? It sounds like a plausible option in theory. Unfortunately, it's not that simple.</p>
+
+  <p>LDAP read isn't some admin feature you can switch off. It's what the whole domain runs on. Applying Group Policy, logging on, finding a DC, resolving group membership, every Kerberos lookup: all of it is authenticated processes reading AD constantly. <code>Authenticated Users</code> being able to read most of the directory is the default, and it's the default because the alternative is a domain that doesn't work.</p>
+
+  <div class="callout note">
+    <div class="callout-title">&#x25CF; the uncomfortable part</div>
+    Every domain-joined machine and every logged-on user is, by design, allowed to enumerate users, groups, and most of their attributes. That's not a hole to patch. It's the read model AD was built on in 2000 and still runs on today.
+  </div>
+
+  <p>Having said that, you can still harden specific things, and you should: ACL individual sensitive attributes (LAPS' <code>ms-Mcs-AdmPwd</code> is the classic), turn on list-object mode, move sensitive accounts into tightly delegated OUs. But take the password-expiry read from section 01. It won't stop, for one specific reason. <code>msDS-UserPasswordExpiryTimeComputed</code> is a <em>constructed</em> attribute. It isn't stored, so there's no ACL to hang on it. To deny the computed value you'd have to deny read on <code>pwdLastSet</code>, and clients really need to know password age to work. You can't ACL a calculation, and you can't hide its inputs without breaking logon. That's the tell: this isn't a vulnerability with a patch, it's the design working as intended, read from the other side of the table.</p>
+
+  <p>And on the machine itself, there's nothing to catch. <code>[adsisearcher]</code> spawns no process, loads no module, writes nothing to disk. It uses <code>System.DirectoryServices</code>, the same .NET stack a thousand legitimate apps use to talk to AD. To the DC it's one more authenticated client asking a normal question.</p>
+
+  <div class="section-title">06 &mdash; what defenders can do</div>
+
+  <p>As blocking LDAP read permissions is almost impossible, without affecting or breaking normal AD operations, detection becomes the second best option. Here are a few things we can do.</p>
+
+  <p>We can turn on Directory Service Access auditing. With SACLs in place, reads against objects generate event <code>4662</code> on the DC. It's noisy out of the box, which is exactly why most shops leave it off, but scoped to the right objects it's the closest thing you have to visibility into who is reading what.</p>
+
+  <p>Another way: plant honey attributes and honey accounts. A decoy account that looks like a juicy non-expiring service account, with a SACL that screams the moment anyone reads it, turns this quiet enumeration into a loud alert. The attacker's own thoroughness is what trips it. They can't tell the bait from the real thing without reading it, and reading it is the alarm.</p>
+
+  <p>Keeping an eye on unusual LDAP traffic is another way. One host suddenly issuing broad LDAP queries, pulling every account with a given flag, or paging through every user object, is a pattern even when each individual read is legitimate. You're not looking for a bad process name. You're looking for a normal API being used at an abnormal scale from somewhere it doesn't belong.</p>
+
+  <p>Last but not least, move those service accounts with non-expiring or weak passwords to group managed service accounts, when possible, so the password is 120 characters, rotates on its own, and never lives in a human's head or a config file. If an account can't be a gMSA, give it a really long random password and a tight logon scope. And of course, get the passwords out of description fields today.</p>
+
+  <div class="section-title">07 &mdash; wrapping up</div>
+
+  <p>So there it is. Four one-liners, no tools installed and no files dropped, just a domain user reading a directory that has to let them read it. That's what makes <code>[adsisearcher]</code> handy, and it's the same reason it's so hard to stop. You won't block the read. What you can do is make what it finds worthless: rotate the service account passwords, move them to gMSAs where you can, and get the secrets out of description fields. And keep an eye on the reads themselves. Monitor for that one host paging through the whole directory or pulling every account with a given flag, because when the read is normal, the pattern is all you get.</p>
+
+  <p>If you want to play with this, the old Microsoft Scripting Blog write-up on the <a href="https://devblogs.microsoft.com/scripting/use-the-powershell-adsisearcher-type-accelerator-to-search-active-directory/" target="_blank" rel="noopener">[adsisearcher] type accelerator</a> is a good place to start. Spin it up in a lab, change the filter, and see what the directory hands back.</p>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+</body>
+</html>

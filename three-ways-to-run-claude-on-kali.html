@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Ways to Run Claude | Y3llowDuck</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/img/duck.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/img/duck.png">
+<link rel="stylesheet" href="/assets/css/post.css">
+<style>
+  .hero h1 .accent { color: var(--green); }
+  .page-wrap p a { color: var(--green); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  .page-wrap p a:hover { color: #56d364; }
+
+  /* command block copy button, sits on the terminal chrome */
+  .terminal { position: relative; }
+  .copy-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 9px;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--blue); }
+
+  /* plain bullet list in the site voice */
+  ul.plain { list-style: none; padding: 0; margin: 0 0 20px; }
+  ul.plain li { font-size: 15.5px; color: #c9d1d9; padding: 4px 0 4px 20px; position: relative; }
+  ul.plain li::before { content: '\25B9'; position: absolute; left: 0; color: var(--green); }
+
+  .sources-list { list-style: none; padding: 0; margin: 0 0 8px; }
+  .sources-list li { font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 5px 0 5px 18px; position: relative; }
+  .sources-list li::before { content: '\2192'; position: absolute; left: 0; color: var(--green); }
+  .sources-list a { color: var(--blue); text-decoration: none; }
+  .sources-list a:hover { text-decoration: underline; }
+
+  /* screenshots that support a step */
+  .post-figure { margin: 20px 0; }
+  .post-figure img {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: block;
+  }
+  .post-figure figcaption {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin-top: 10px;
+    text-align: center;
+  }
+</style>
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window, document, "clarity", "script", "xur3ej2fwd");</script>
+</head>
+<body>
+<header style="border-bottom:1px solid #21262d;padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(13,17,23,0.92);backdrop-filter:blur(8px);z-index:100;font-family:'JetBrains Mono',monospace;">
+  <a href="https://y3llowduck.github.io/index.html" style="font-weight:700;font-size:16px;color:#58a6ff;text-decoration:none;letter-spacing:-0.5px;">Y3llow<span style="color:#3fb950;">Duck</span></a>
+  <nav style="display:flex;gap:24px;">
+    <a href="https://y3llowduck.github.io/index.html" style="font-size:13px;color:#8b949e;text-decoration:none;">About</a>
+    <a href="https://y3llowduck.github.io/posts.html" style="font-size:13px;color:#8b949e;text-decoration:none;">Posts</a>
+    <a href="https://github.com/Y3llowDuck" target="_blank" rel="noopener" style="font-size:13px;color:#8b949e;text-decoration:none;">GitHub</a>
+  </nav>
+</header>
+
+<div class="page-wrap">
+
+  <div class="tags">
+    <span class="tag green">Kali Linux</span>
+    <span class="tag blue">Claude Code</span>
+    <span class="tag yellow">Setup</span>
+    <span class="tag red">Tooling</span>
+  </div>
+
+<div class="hero">
+  <h1>Three Ways to Run <span class="accent">Claude</span></h1>
+  <div class="hero-meta">
+    <span>Linux</span>
+    <span>Debian-based</span>
+    <span>~4 min read</span>
+  </div>
+</div>
+
+<hr class="hero-divider">
+
+  <p>AI changes fast. What we learned a few months ago may not be true today. I was recently going through one of Anthropic's courses, just for fun, and the curriculum changed on the fly. Cowork got removed and <a href="https://claude.com/blog/cowork-is-now-claude" target="_blank" rel="noopener">folded into Claude Chat</a>, and that is only one example. One thing that has stayed relatively stable so far, though, is the setup, at least for Claude.</p>
+
+  <p>Knowing how to install Claude is the key to actually using it. The simplest option is the browser version (software you just log into online, with nothing to install), but that is not always the best fit for more advanced work. That is why it helps to understand every option, including the command line ones. The same is true for ChatGPT, but I will focus on Claude here. It is my favorite AI product for cybersecurity work, at least right now, in September 2026. The competition is so fierce that I might change my mind in a few months and switch to whatever works better and costs me less.</p>
+
+  <p>Here are the three options, starting with the easiest one first.</p>
+
+  <div class="section-title">01 &mdash; claude.ai</div>
+  <h2>The browser, nothing to install</h2>
+
+  <p>The easiest option of all. Open a browser, sign in, done. Nothing to install, patch, or maintain.</p>
+
+  <ul class="plain">
+    <li><strong>Individuals:</strong> Free, Pro, and Max.</li>
+    <li><strong>Organizations:</strong> Team and Enterprise.</li>
+  </ul>
+
+  <figure class="post-figure">
+    <img src="/assets/img/three-ways-to-run-claude-on-kali/claude-ai-browser.png" alt="The claude.ai chat interface in a browser, showing the Let's noodle greeting and the How can I help you today? prompt box, with the Sonnet 5.5 model selected.">
+    <figcaption>claude.ai in the browser. Just sign in and go.</figcaption>
+  </figure>
+
+  <p>Good for asking questions, drafting notes, or reasoning through a problem. Definitely not the one to pick for more advanced activities, but I am mentioning it because in some situations it is the only option available. It is just not the right method when you want to do things like agentic AI, where the assistant carries out multi-step tasks on its own, or repetitive automated work.</p>
+
+  <p>One thing worth knowing: Claude Code also has a browser version at <a href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a>. It runs your coding tasks in Anthropic's cloud from a GitHub repo, with nothing to install and a paid plan required. So the browser is not strictly chat only. Just remember it runs in the cloud, not on your Kali box, so it cannot reach your local tools or targets.</p>
+
+  <div class="section-title">02 &mdash; desktop app</div>
+  <h2>Like the browser, but with extras</h2>
+
+  <p>The desktop app is a wrapper around the same service you get in the browser, with extras on top like visual diff review, an integrated terminal and editor, and live app preview. You can also run Claude Code from it, and point it at local folders or even the cloud.</p>
+
+  <p>Inside the app you get Claude Chat and Claude Code as separate tabs. Chat is the same conversation experience as the browser; Code is the same Claude Code you can install on its own in the next section, just with a visual interface instead of the terminal.</p>
+
+  <p>For a long time it was Mac and Windows only, but that has changed. Anthropic now ships an <a href="https://code.claude.com/docs/en/desktop-linux" target="_blank" rel="noopener">official Linux desktop app</a>, currently in beta. It officially supports Ubuntu 22.04 or later and Debian 12 or later on x64 and arm64. Kali is Debian based, so it may run, but Kali isn't one of the officially tested distributions, so treat it as unsupported.</p>
+
+  <p>Installing it depends on your system.</p>
+
+  <p><strong>Windows and Mac.</strong> Download the installer from the <a href="https://claude.com/download" target="_blank" rel="noopener">official download page</a>, run it, then launch Claude and sign in. The app keeps itself up to date. On Windows, pick the x64 installer, or the ARM64 one if you are on an ARM machine.</p>
+
+  <p><strong>Debian based Linux.</strong> It installs from Anthropic's signed apt repository, the same idea as the CLI. Add the repo and key first, taken from the <a href="https://code.claude.com/docs/en/desktop-linux" target="_blank" rel="noopener">official Linux docs</a> since it includes GPG verification, then install:</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="sudo apt update && sudo apt install claude-desktop">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; desktop install</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> sudo apt update <span class="kw">&amp;&amp;</span> sudo apt install claude-desktop</div>
+  </div>
+
+  <p>Launch Claude from your app menu or run <code>claude-desktop</code>, then sign in. On Linux the desktop app does not self-update, so new versions arrive with your normal system upgrades.</p>
+
+  <div class="section-title">03 &mdash; claude code cli</div>
+  <h2>The terminal agent</h2>
+
+  <p>This is the one most cybersecurity professionals and pentesters actually want. An agentic assistant that lives in your terminal and can read, run, and reason about your work directly. Three install paths, and since Kali is Debian based, all of them work.</p>
+
+  <h2 style="font-size:17px;margin-top:32px;">Native installer, the one I'd recommend</h2>
+
+  <p>Needs no root (no administrator access) and drops the program into your home folder at <code>~/.local/bin</code>:</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="curl -fsSL https://claude.ai/install.sh | bash">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; native install</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">┌──(kali㉿kali)-[~]
+└─$</span> curl -fsSL https://claude.ai/install.sh | bash</div>
+  </div>
+
+  <figure class="post-figure">
+    <img src="/assets/img/three-ways-to-run-claude-on-kali/native-install.png" alt="Kali terminal running curl -fsSL https://claude.ai/install.sh | bash, showing the native installation completing, the launcher placed at ~/.local/bin/claude, claude --version printing the version, and a no root required badge.">
+    <figcaption>The native installer on Kali. No root needed.</figcaption>
+  </figure>
+
+  <p>This is the path to pick if you want zero maintenance. It self-updates quietly in the background, so you're always current without doing anything.</p>
+
+  <h2 style="font-size:17px;margin-top:32px;">apt, Anthropic's signed repository</h2>
+
+  <p><code>apt</code> is supported through Anthropic's signed repository. You add the repo and key first, then install:</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="sudo apt install claude-code">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; apt install</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> sudo apt install claude-code</div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">verify the key yourself</div>
+    The repo and key setup is multi-line and includes GPG key verification. Copy it straight from the <a href="https://code.claude.com/docs/en/setup" target="_blank" rel="noopener" style="color:var(--yellow);">official setup docs</a>, not from a blog post, including this one. Verifying a signing key is exactly the step you don't want to take secondhand.
+  </div>
+
+  <p>Upgrades then ride along with your normal patching:</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="sudo apt update && sudo apt upgrade claude-code">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; upgrade</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> sudo apt update <span class="kw">&amp;&amp;</span> sudo apt upgrade claude-code</div>
+  </div>
+
+  <figure class="post-figure">
+    <img src="/assets/img/three-ways-to-run-claude-on-kali/apt-upgrade.png" alt="Kali terminal running sudo apt update && sudo apt upgrade claude-code, showing the signed downloads.claude.ai repository and the claude-code package upgrading successfully.">
+    <figcaption>Upgrading claude-code through apt on Kali.</figcaption>
+  </figure>
+
+  <h2 style="font-size:17px;margin-top:32px;">npm</h2>
+
+  <p>Quick note on what npm is, in case the name is new. npm is the standard tool for installing software written for Node.js, a widely used programming platform. If you have ever done web development you probably already have it. If not, no problem: just know this is the most developer-focused of the three routes, and the least convenient on a machine like Kali.</p>
+
+  <p><code>npm</code> works too, with two conditions. It needs Node.js 22 or later, and you should never run it with <code>sudo</code>, the command that runs things as administrator:</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="npm install -g @anthropic-ai/claude-code">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">kali &mdash; npm install</span>
+    </div>
+    <div class="terminal-body"><span class="prompt">└─$</span> npm install <span class="kw">-g</span> @anthropic-ai/claude-code</div>
+  </div>
+
+  <p>Updates here are fully manual. You re-run the install command when you want a new version.</p>
+
+  <div class="section-title">04 &mdash; same binary, different upkeep</div>
+  <h2>Pick by update style</h2>
+
+  <p>All three methods install the exact same program (the same native binary). The choice isn't about capability, but about how updates get handled.</p>
+
+  <table class="port-table">
+    <thead>
+      <tr><th>Method</th><th>Updates</th><th>Root?</th><th>Extra deps</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="port-number">native</td><td>Self-updates in background</td><td>No</td><td>None</td></tr>
+      <tr><td class="port-number">apt</td><td>With the system</td><td>Install / upgrade</td><td>None</td></tr>
+      <tr><td class="port-number">npm</td><td>Manual</td><td>No</td><td>Node.js 22+</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout note">
+    <div class="callout-title">my pick for a pentest box</div>
+    I'd go with <code>apt</code>. The signed repo fits normal patching, and you avoid a Node dependency on a machine already full of tooling. Fewer moving parts, one patching workflow, a verified key. If you'd rather not think about updates at all, the native installer is the low maintenance choice.
+  </div>
+
+  <div class="section-title">05 &mdash; wrapping up</div>
+  <h2>So which one?</h2>
+
+  <p>If you only need to ask questions or do some quick research, the browser is more than enough. It may not be the right choice if you want to work with artifacts or analyze documents though, like Excel, Word, or even HTML pages. If you are a cybersecurity professional or want to work on agentic AI deployments, go with the CLI; it may look intimidating at the beginning, but you will find your way around quickly.</p>
+
+  <div class="section-title">// sources</div>
+
+  <ul class="sources-list">
+    <li><a href="https://code.claude.com/docs/en/setup" target="_blank" rel="noopener">Claude Code setup docs</a></li>
+    <li><a href="https://code.claude.com/docs/en/install" target="_blank" rel="noopener">Claude Code install docs</a></li>
+    <li><a href="https://code.claude.com/docs/en/desktop-linux" target="_blank" rel="noopener">Claude Desktop on Linux (beta), official docs</a></li>
+    <li><a href="https://claude.com/blog/cowork-is-now-claude" target="_blank" rel="noopener">Cowork and chat are now one Claude, Anthropic blog</a></li>
+  </ul>
+
+  <div class="giscus" style="margin-top: 72px;"></div>
+  <script src="https://giscus.app/client.js"
+        data-repo="Y3llowDuck/Y3llowDuck.github.io"
+        data-repo-id="R_kgDOSxJjZQ"
+        data-category="Announcements"
+        data-category-id="DIC_kwDOSxJjZc4C-gsv"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme="dark"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+  </script>
+
+  <div class="footer">
+    <span>written by <a href="https://github.com/Y3llowDuck">Y3llowDuck</a> with love &mdash; <a href="https://github.com/Y3llowDuck">github.com/Y3llowDuck</a></span>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy');
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'copied';
+        setTimeout(function () { btn.textContent = old; }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallback(text, done); });
+      } else {
+        fallback(text, done);
+      }
+    });
+  });
+  function fallback(text, done) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); done();
+    } catch (e) { /* no-op */ }
+  }
+</script>
+
+</body>
+</html>

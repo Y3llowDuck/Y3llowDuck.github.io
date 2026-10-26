@@ -536,14 +536,13 @@ pm.max_requests = 1</div>
   <!-- TODO: replace with your Layer 4 Wiz Security Graph screenshot/image -->
 
   <div class="terminal">
-    <button class="copy-btn" data-copy="# find live web hosts in the subnet&#10;nmap -p 80,443 --open -oG - 10.0.1.0/24 \&#10;  | awk '/open/{print $2}' > live_web.txt&#10;&#10;# check each host for vulnerable PHP&#10;nuclei -l live_web.txt -tags php -severity critical,high">copy</button>
+    <button class="copy-btn" data-copy="# find live web hosts in the subnet&#10;nmap -p 80,443 --open -oG - 10.0.1.0/24 | awk '/open/{print $2}' > live_web.txt&#10;&#10;# check each host for vulnerable PHP&#10;nuclei -l live_web.txt -tags php -severity critical,high">copy</button>
     <div class="terminal-bar">
       <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
       <span class="terminal-label">bash &mdash; find exposed PHP servers in a subnet</span>
     </div>
     <div class="terminal-body"><span class="prompt"># find live web hosts in the subnet</span>
-nmap -p 80,443 --open -oG - 10.0.1.0/24 \
-  | awk '/open/{print $2}' > live_web.txt
+nmap -p 80,443 --open -oG - 10.0.1.0/24 | awk '/open/{print $2}' > live_web.txt
 
 <span class="prompt"># check each host for vulnerable PHP</span>
 nuclei -l live_web.txt -tags php -severity critical,high</div>
@@ -568,6 +567,26 @@ nuclei -l live_web.txt -tags php -severity critical,high</div>
   <p>Some administrators hash key directories for file integrity monitoring, particularly read-only ones. If a hash changes and you can correlate it with a web server or firewall log anomaly, you have a much clearer picture of a potential breach.</p>
 
   <p>If you use Falcon, it can alert on <code>php-fpm</code>, <code>httpd</code> or <code>apache2</code> spawning shells, <code>curl</code>, <code>wget</code> or interpreters, and hunt for web shells via RTR. On AWS, GuardDuty, VPC Flow Logs, and Inspector are worth turning on.</p>
+
+  <p>If you want to go manual, these three awk and grep one-liners cover the main signals in Apache logs.</p>
+
+  <div class="terminal">
+    <button class="copy-btn" data-copy="# oversized POSTs — CVE-2026-109618 OOM trigger candidates&#10;awk '$6 ~ /POST/ && $10+0 > 1000000 { printf &quot;%s  %s  %s  %.1fMB\n&quot;, $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20&#10;&#10;# large 200 responses — bulk exfil after a successful shell&#10;awk '$9 == &quot;200&quot; && $10+0 > 524288 { printf &quot;%s  %s  %s  %.1fMB\n&quot;, $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20&#10;&#10;# PHP memory exhaustion and heap corruption in the error logs (including rotated)&#10;sudo zgrep -Ein 'Allowed memory size of .* exhausted|zend_mm_heap corrupted' /var/log/apache2/*error.log*">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">bash &mdash; hunt php2shell indicators in apache logs</span>
+    </div>
+    <div class="terminal-body"><span class="prompt"># oversized POSTs — CVE-2026-109618 OOM trigger candidates</span>
+awk '$6 ~ /POST/ && $10+0 > 1000000 { printf "%s  %s  %s  %.1fMB\n", $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20
+
+<span class="prompt"># large 200 responses — bulk exfil after a successful shell</span>
+awk '$9 == "200" && $10+0 > 524288 { printf "%s  %s  %s  %.1fMB\n", $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20
+
+<span class="prompt"># PHP memory exhaustion and heap corruption in the error logs (including rotated)</span>
+sudo zgrep -Ein 'Allowed memory size of .* exhausted|zend_mm_heap corrupted' /var/log/apache2/*error.log*</div>
+  </div>
+
+  <p>The first two hit the access log. A POST over 1 MB that also produced a crash in the error log is a strong signal. A 200 response over 512 KB on a PHP endpoint that normally returns a few kilobytes is worth pulling manually to see what came back. The third one uses <code>zgrep</code> so it covers rotated and compressed error logs, not just the live one.</p>
 
   <div class="callout warn">
     <div class="callout-title">before you rely on anything here</div>

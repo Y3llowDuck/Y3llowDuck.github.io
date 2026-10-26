@@ -571,22 +571,22 @@ nuclei -l live_web.txt -tags php -severity critical,high</div>
   <p>If you want to go manual, these three awk and grep one-liners cover the main signals in Apache logs.</p>
 
   <div class="terminal">
-    <button class="copy-btn" data-copy="# oversized POSTs — CVE-2026-109618 OOM trigger candidates&#10;awk '$6 ~ /POST/ && $10+0 > 1000000 { printf &quot;%s  %s  %s  %.1fMB\n&quot;, $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20&#10;&#10;# large 200 responses — bulk exfil after a successful shell&#10;awk '$9 == &quot;200&quot; && $10+0 > 524288 { printf &quot;%s  %s  %s  %.1fMB\n&quot;, $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20&#10;&#10;# PHP memory exhaustion and heap corruption in the error logs (including rotated)&#10;sudo zgrep -Ein 'Allowed memory size of .* exhausted|zend_mm_heap corrupted' /var/log/apache2/*error.log*">copy</button>
+    <button class="copy-btn" data-copy="# POST requests that crashed or got rejected — 500 = PHP crash, 413 = size-capped&#10;awk '$6 ~ /POST/ && ($9 == &quot;500&quot; || $9 == &quot;413&quot;) { print $1, $4, $7, $9 }' /var/log/apache2/access.log | head -20&#10;&#10;# large 200 responses — abnormal response size, worth pulling manually&#10;awk '$9 == &quot;200&quot; && $10+0 > 524288 { printf &quot;%s  %s  %s  %.1fMB\n&quot;, $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20&#10;&#10;# PHP memory exhaustion and heap corruption in the error logs (including rotated)&#10;sudo zgrep -Ein 'Allowed memory size of .* exhausted|zend_mm_heap corrupted' /var/log/apache2/*error.log*">copy</button>
     <div class="terminal-bar">
       <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
       <span class="terminal-label">bash &mdash; hunt php2shell indicators in apache logs</span>
     </div>
-    <div class="terminal-body"><span class="prompt"># oversized POSTs — CVE-2026-109618 OOM trigger candidates</span>
-awk '$6 ~ /POST/ && $10+0 > 1000000 { printf "%s  %s  %s  %.1fMB\n", $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20
+    <div class="terminal-body"><span class="prompt"># POST requests that crashed or got rejected — 500 = PHP crash, 413 = size-capped</span>
+awk '$6 ~ /POST/ && ($9 == "500" || $9 == "413") { print $1, $4, $7, $9 }' /var/log/apache2/access.log | head -20
 
-<span class="prompt"># large 200 responses — bulk exfil after a successful shell</span>
+<span class="prompt"># large 200 responses — abnormal response size, worth pulling manually</span>
 awk '$9 == "200" && $10+0 > 524288 { printf "%s  %s  %s  %.1fMB\n", $1, $4, $7, $10/1048576 }' /var/log/apache2/access.log | sort -k4 -rn | head -20
 
 <span class="prompt"># PHP memory exhaustion and heap corruption in the error logs (including rotated)</span>
 sudo zgrep -Ein 'Allowed memory size of .* exhausted|zend_mm_heap corrupted' /var/log/apache2/*error.log*</div>
   </div>
 
-  <p>The first two hit the access log. A POST over 1 MB that also produced a crash in the error log is a strong signal. A 200 response over 512 KB on a PHP endpoint that normally returns a few kilobytes is worth pulling manually to see what came back. The third one uses <code>zgrep</code> so it covers rotated and compressed error logs, not just the live one.</p>
+  <p>By the way. None of these confirm a successful RCE. They give you a short list of requests worth looking at manually. A POST that returned 500 combined with a memory error in the error log at the same timestamp is a reason to investigate further, not a verdict. The 200 response check is the same: an endpoint returning 500 KB when it normally returns 5 KB is suspicious, not conclusive. The <code>zgrep</code> covers rotated and compressed error logs, not just the live one, which matters if the incident happened days ago.</p>
 
   <div class="callout warn">
     <div class="callout-title">before you rely on anything here</div>

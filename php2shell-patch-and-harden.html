@@ -330,13 +330,13 @@ pm.max_requests = 1</div>
     <figcaption style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8b949e;text-align:center;margin-top:10px;">The top node of the main diagram, opened up. WAF is where oversized and multipart requests die. The VPC internals on the right are what Layer 2 zooms into.</figcaption>
   </figure>
 
-  <p>Put CloudFront or an ALB in front and lock the origin security group to the CloudFront managed prefix list, so nothing reaches the origin directly. Add authentication at the edge, ALB OIDC or Cognito, or move the app behind a VPN or ZTNA. If an unauthenticated request never reaches PHP, a pre-auth RCE has nothing to talk to. That step does more than every <code>php.ini</code> tweak combined.</p>
+  <p>Put CloudFront or an ALB in front and lock the origin security group to the CloudFront managed prefix list, so nothing reaches the origin directly. Add authentication at the edge, ALB OIDC or Cognito, or move the app behind a VPN or ZTNA. If an unauthenticated request never reaches PHP, a pre-auth RCE has nothing to reach. That step does more than every <code>php.ini</code> tweak combined.</p>
 
-  <p>Then use AWS WAF for what it's good at, which is shrinking the attack surface.</p>
+  <p>Then use AWS WAF for what it's good at, which is reducing the attack surface.</p>
 
   <p>Cap request body size. CVE-2026-109618 triggers when PHP runs out of memory processing a request. The larger the request body, the more memory PHP has to allocate for it. An oversized POST body, especially a multipart file upload, is exactly what pushes PHP toward that memory limit and into the abort path the exploit abuses. A hard ceiling on POST body size at the WAF means PHP never receives that request: the allocation never happens, the memory pressure never builds, and the exploit path closes before it starts. This also reinforces whatever you set in <code>post_max_size</code>, giving you two enforcement points instead of one. Block multipart uploads entirely on routes that don't use them. If an endpoint has no reason to accept a file, tell the WAF to drop multipart requests to it outright. Rate limit everything else.</p>
 
-  <p>Cap response size too, which people forget. This one is easy to overlook because it feels like a performance setting, not a security one. But if an RCE does land, the attacker's goal is to read files and get data out. That data has to leave as HTTP responses. A normal page load returns a few kilobytes. A directory listing, a file read, or a database dump returns megabytes. A WAF rule that rejects responses over a reasonable threshold catches that bulk exfiltration even when the inbound request looked perfectly fine. A login endpoint returning 40MB is not normal: it is worth capping and worth alerting on.</p>
+  <p>Cap response size too, which people forget. This one is easy to overlook because it feels like a performance setting, not a security one. But if an RCE does land, the attacker's goal is to read files and get data out. That data has to leave as HTTP responses. A normal page load returns a few kilobytes. A directory listing, a file read, or a database dump returns megabytes. A WAF rule that rejects responses over a reasonable threshold catches that bulk exfiltration even when the inbound request looked perfectly fine. A login endpoint returning 40MB is not normal: cap it and alert on it.</p>
 
   <figure style="margin:28px 0;">
     <div class="diagram-title">WAF size caps · how they cut the two attack paths</div>
@@ -444,16 +444,16 @@ pm.max_requests = 1</div>
     <div class="diagram-title">Layer 2 · security groups and egress (zoom-in)</div>
     <svg viewBox="0 0 780 300" role="img" aria-label="Zoom-in of the network: security groups reference each other by ID so the ALB SG feeds the web SG on 443 and the web SG feeds the DB SG on the database port, while default-deny egress sends web traffic through Network Firewall and DNS Firewall, allowing only allowlisted domains and denying command-and-control, staging and exfiltration." style="width:100%;height:auto;display:block;background:#0d1117;border:1px solid #30363d;border-radius:10px;font-family:'JetBrains Mono',monospace;">
       <text x="40" y="34" fill="#8b949e" font-size="10.5">Security groups · lateral movement</text>
-      <use href="#ico-alb" x="60" y="52" width="44" height="44"/>
-      <text x="82" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">ALB SG</text>
-      <line x1="106" y1="74" x2="196" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
-      <text x="151" y="67" text-anchor="middle" fill="#8b949e" font-size="9">443</text>
-      <use href="#ico-ec2" x="200" y="52" width="44" height="44"/>
-      <text x="222" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">Web SG (EC2)</text>
-      <line x1="246" y1="74" x2="356" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
-      <text x="301" y="67" text-anchor="middle" fill="#8b949e" font-size="9">db port</text>
-      <use href="#ico-rds" x="360" y="52" width="44" height="44"/>
-      <text x="382" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">DB SG (RDS)</text>
+      <use href="#ico-alb" x="218" y="52" width="44" height="44"/>
+      <text x="240" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">ALB SG</text>
+      <line x1="264" y1="74" x2="354" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
+      <text x="309" y="67" text-anchor="middle" fill="#8b949e" font-size="9">443</text>
+      <use href="#ico-ec2" x="358" y="52" width="44" height="44"/>
+      <text x="380" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">Web SG (EC2)</text>
+      <line x1="404" y1="74" x2="514" y2="74" stroke="#c9d1d9" stroke-width="2" marker-end="url(#ah)"/>
+      <text x="459" y="67" text-anchor="middle" fill="#8b949e" font-size="9">db port</text>
+      <use href="#ico-rds" x="518" y="52" width="44" height="44"/>
+      <text x="540" y="112" text-anchor="middle" fill="#c9d1d9" font-size="10">DB SG (RDS)</text>
 
       <line x1="40" y1="150" x2="720" y2="150" stroke="#30363d"/>
 
@@ -561,13 +561,13 @@ nuclei -l live_web.txt -tags php -severity critical,high</div>
   <div class="section-title">05 &mdash; logs &amp; detection</div>
   <h2>Always check your logs</h2>
 
-  <p>Some of the biggest breaches in history were detected weeks or months after the initial compromise. Two that come to mind: the Target POS breach in 2013, where FireEye alerts fired and went unacknowledged for weeks before external researchers flagged the compromise, and the VTech breach in 2015, where millions of children's records were stolen before the company knew anything had happened. Checking your logs is never a bad idea.</p>
+  <p>Some of the biggest breaches in history were detected weeks or months after the initial compromise. Two that come to mind: the Target POS breach in 2013, where FireEye alerts fired and went unacknowledged for weeks before external researchers flagged the compromise, and the VTech breach in 2015, where millions of children's records were stolen before the company knew anything had happened. Check your logs.</p>
 
-  <p>Vendors are treating PHP crashes and memory exhaustion errors as likely signs of exploitation. Both bugs are about memory going wrong, so seeing a run of those in your logs is not good news. On any exposed asset, check the Apache or nginx access and error logs. Inspect the firewall logs. Look for abnormal outbound traffic from any PHP host, especially to unfamiliar destinations. That is a strong indicator that an RCE was executed.</p>
+  <p>Vendors are treating PHP crashes and memory exhaustion errors as likely signs of exploitation. Both bugs are about memory going wrong, so seeing a run of those in your logs is not good news. On any exposed asset, check the Apache or nginx access and error logs. Inspect the firewall logs. Look for abnormal outbound traffic from any PHP host, especially to unfamiliar destinations. That's a strong sign an RCE ran.</p>
 
   <p>Some administrators hash key directories for file integrity monitoring, particularly read-only ones. If a hash changes and you can correlate it with a web server or firewall log anomaly, you have a much clearer picture of a potential breach.</p>
 
-  <p>If you use Falcon it can also assist with alerts on <code>php-fpm</code>, <code>httpd</code> or <code>apache2</code> spawning shells, <code>curl</code>, <code>wget</code> or interpreters, and with hunting for web shells via RTR. On AWS, GuardDuty, VPC Flow Logs, and Inspector are useful here as well.</p>
+  <p>If you use Falcon, it can alert on <code>php-fpm</code>, <code>httpd</code> or <code>apache2</code> spawning shells, <code>curl</code>, <code>wget</code> or interpreters, and hunt for web shells via RTR. On AWS, GuardDuty, VPC Flow Logs, and Inspector are worth turning on.</p>
 
   <div class="callout warn">
     <div class="callout-title">before you rely on anything here</div>

@@ -550,11 +550,21 @@ nuclei -l live_web.txt -tags php -severity critical,high</div>
 
   <div class="callout note">
     <div class="callout-title">how to install nuclei</div>
-    Nuclei is a fast, template-based vulnerability scanner by ProjectDiscovery. To install it, you need Go on your system. Then run:<br><br>
-    <code>go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest</code><br><br>
-    On Kali Linux it is also available via apt:<br><br>
-    <code>sudo apt install -y nuclei</code><br><br>
-    Either way, pull the latest templates before you scan: <code>nuclei -update-templates</code>
+    Nuclei is a fast, template-based vulnerability scanner by ProjectDiscovery. To install it, you need Go on your system. Then run:
+    <div class="terminal" style="margin-top:10px;margin-bottom:10px;">
+      <div class="terminal-bar"><div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div></div>
+      <div class="terminal-body">go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest</div>
+    </div>
+    On Kali Linux it is also available via apt:
+    <div class="terminal" style="margin-top:10px;margin-bottom:10px;">
+      <div class="terminal-bar"><div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div></div>
+      <div class="terminal-body">sudo apt install -y nuclei</div>
+    </div>
+    Either way, pull the latest templates before you scan:
+    <div class="terminal" style="margin-top:10px;margin-bottom:0;">
+      <div class="terminal-bar"><div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div></div>
+      <div class="terminal-body">nuclei -update-templates</div>
+    </div>
   </div>
 
   <div class="section-title">05 &mdash; logs &amp; detection</div>
